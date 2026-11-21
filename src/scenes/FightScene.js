@@ -63,6 +63,7 @@ export class FightScene extends Phaser.Scene {
     for (const [f, x, face] of [[this.p1, mid - 260, 1], [this.p2, mid + 260, -1]]) {
       f.hp = 1000; f.x = x; f.y = this.groundY; f.vx = 0; f.vy = 0; f.facing = face;
       f.move = null; f.special = null; f.invuln = 0; f.counterActive = 0; f.shieldT = 0;
+      f.rot = 0; f.spin = 0; f.bounced = false; f.koLanded = false; f.flash = 0;
       f.cool.s1 = 0; f.cool.s2 = 0; f.sprite.setAlpha(1);
       f.setState('intro');
     }
@@ -136,11 +137,14 @@ export class FightScene extends Phaser.Scene {
     const cx = (def.x + att.x) / 2 + att.facing * 20;
     const cy = def.y - BODY_H * (hit.band === 'low' ? 0.2 : 0.62);
     if (res === 'blocked') {
+      if (!hit.projectile && att.grounded && (def.x <= this.leftBound + 70 || def.x >= this.rightBound - 70)) att.vx = -att.facing * (hit.knock || 150) * 0.6;
       this.fx.spark(cx, cy, 0xbfe0ff, false);
       Sfx.block();
       att.superM = Math.min(MAX_SUPER, att.superM + 3);
       return res;
     }
+    // dans le coin, c'est l'attaquant qui recule (comme dans les jeux de combat)
+    if (!hit.projectile && att.grounded && (def.x <= this.leftBound + 70 || def.x >= this.rightBound - 70)) att.vx = -att.facing * (hit.knock || 150) * 0.8;
     const color = hit.color || 0xffe38a;
     this.fx.spark(cx, cy, color, !!hit.heavy);
     if (hit.heavy) { Sfx.heavyHit(); this.cameras.main.shake(140, 0.01); } else Sfx.hit(1 + Math.random() * 0.3);
@@ -286,7 +290,7 @@ export class FightScene extends Phaser.Scene {
     if (dt > 0) {
       const a = this.p1, b = this.p2;
       const overlapX = 100 - Math.abs(a.x - b.x);
-      if (overlapX > 0 && Math.abs(a.y - b.y) < 200 && a.alive && b.alive) {
+      if (overlapX > 0 && Math.abs(a.y - b.y) < 200 && a.alive && b.alive && !a.lying && !b.lying) {
         const dir = a.x < b.x ? -1 : a.x > b.x ? 1 : (a.facing > 0 ? -1 : 1);
         a.x += dir * overlapX / 2; b.x -= dir * overlapX / 2;
         a.x = Phaser.Math.Clamp(a.x, this.leftBound + 55, this.rightBound - 55);

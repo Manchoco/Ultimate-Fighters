@@ -31,12 +31,14 @@ npm run dev      # serveur local
 npm run build    # version de production dans dist/
 ```
 
-Technologies : [Phaser 3](https://phaser.io) + Vite. Déploiement : Vercel.
+Technologies : [Phaser 3](https://phaser.io) + Vite. Les poses sont générées par `tools/rig.py`. Déploiement : Vercel.
 
 ## Crédits
 
 - Illustrations des combattants : créées à partir des visuels fournis par Manchoco (générées avec Canva IA, détourées).
 - Arènes : visuels fournis par Manchoco.
+- Animations : poses articulées (tête, bras, jambes) générées par déformation « marionnette » de chaque illustration, à partir d'un squelette détecté automatiquement.
+- Polices (licence OFL, programme des polices africaines de Google Fonts) : **Sankofa Display** (Batsirai Madzonga) pour les titres, **Ojuju** (Chisaokwu Joboson) pour l'interface.
 - Bruitages : synthétisés directement dans le navigateur (Web Audio).
 - Musiques, toutes sous licence **CC0** (domaine public), via OpenGameArt.org :
   - Menu : « Tropical Loop » — https://opengameart.org/content/tropical-loop

@@ -9,6 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/agbalumo": "^5.3.0",
+    "@fontsource/ojuju": "^5.3.0",
+    "@fontsource/sankofa-display": "^5.3.0",
     "phaser": "^3.90.0"
   },
   "devDependencies": {

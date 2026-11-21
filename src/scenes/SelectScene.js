@@ -46,13 +46,13 @@ export class SelectScene extends Phaser.Scene {
     // Fiche du combattant (à gauche)
     this.big = this.add.image(250, 690, `f_${FIGHTERS[0].id}`).setOrigin(0.5, 1);
     this.nameTxt = this.add.text(700, 110, '', { fontFamily: FONT, fontSize: '54px', color: '#fff', stroke: '#000', strokeThickness: 7 });
-    this.titleTxt = this.add.text(702, 172, '', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#ffd23a' });
+    this.titleTxt = this.add.text(702, 172, '', { fontFamily: FONT, fontSize: '24px', color: '#ffd23a' });
     this.statBars = ['VITESSE', 'PUISSANCE', 'DÉFENSE'].map((lab, i) => {
       const y = 222 + i * 34;
       this.add.text(702, y, lab, { fontFamily: FONT, fontSize: '22px', color: '#ddd' });
       return [0, 1, 2, 3, 4].map((k) => this.add.rectangle(850 + k * 46, y + 13, 40, 18, 0x333344).setStrokeStyle(1, 0x000000));
     });
-    this.movesTxt = this.add.text(702, 330, '', { fontFamily: 'Arial', fontSize: '19px', color: '#fff', lineSpacing: 6 });
+    this.movesTxt = this.add.text(702, 330, '', { fontFamily: FONT, fontSize: '20px', color: '#fff', lineSpacing: 6 });
     this.vsImg = null;
 
     this.okBtn = button(this, 1170, 690, 'VALIDER', () => this.confirm(), { size: 30, bg: '#b8860bcc' });
@@ -93,7 +93,8 @@ export class SelectScene extends Phaser.Scene {
     this.big.x = this.step === 'p2' ? 360 : 250;
     this.tweens.killTweensOf(this.big);
     this.big.setAlpha(0); this.tweens.add({ targets: this.big, alpha: 1, duration: 150 });
-    this.nameTxt.setText(f.name.toUpperCase());
+    this.nameTxt.setFontSize(54).setText(f.name.toUpperCase());
+    if (this.nameTxt.width > 560) this.nameTxt.setFontSize(Math.floor(54 * 560 / this.nameTxt.width));
     this.titleTxt.setText(f.title);
     const st = [f.stats.speed, f.stats.power, f.stats.defense];
     this.statBars.forEach((bars, i) => bars.forEach((b, k) => b.setFillStyle(k < st[i] ? f.color : 0x333344)));

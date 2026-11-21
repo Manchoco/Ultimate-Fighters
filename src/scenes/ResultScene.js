@@ -29,7 +29,7 @@ export class ResultScene extends Phaser.Scene {
     const line = champion
       ? `${me.name} a battu les 7 combattants.\nTu es le champion d'Ultimate Fighters !`
       : won ? `${me.name} a battu ${them.name}.` : `${them.name} a battu ${me.name}.`;
-    this.add.text(860, 210, line, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '26px', color: '#fff', align: 'center', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5, 0);
+    this.add.text(860, 210, line, { fontFamily: FONT, fontSize: '28px', color: '#fff', align: 'center', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5, 0);
 
     const toMenu = () => { Music.stop(this); this.scene.start('Title'); };
     if (c.mode === 'arcade') {

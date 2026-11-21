@@ -27,7 +27,7 @@ export class Controls {
     const W = s.scale.width, H = s.scale.height;
     const mk = (id, x, y, r, label, color, kind = 'hold') => {
       const c = s.add.circle(x, y, r, color, 0.28).setStrokeStyle(3, 0xffffff, 0.55).setScrollFactor(0).setDepth(200);
-      const t = s.add.text(x, y, label, { fontFamily: 'Arial Black, sans-serif', fontSize: `${Math.round(r * 0.55)}px`, color: '#fff' })
+      const t = s.add.text(x, y, label, { fontFamily: '"Ojuju", sans-serif', fontSize: `${Math.round(r * 0.55)}px`, color: '#fff' })
         .setOrigin(0.5).setScrollFactor(0).setDepth(201).setAlpha(0.9);
       this.buttons.push({ id, x, y, r, c, t, kind, color });
     };

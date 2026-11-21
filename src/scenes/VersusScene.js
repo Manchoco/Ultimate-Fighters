@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { fighterById } from '../data/fighters.js';
 import { STAGES } from '../data/stages.js';
 import { Sfx } from '../systems/Sfx.js';
-import { FONT } from './ui.js';
+import { FONT, FONT_TITLE } from './ui.js';
 
 // Écran « face à face » avant chaque combat.
 export class VersusScene extends Phaser.Scene {
@@ -23,19 +23,38 @@ export class VersusScene extends Phaser.Scene {
     this.tweens.add({ targets: left, x: 300, duration: 450, ease: 'Back.easeOut' });
     this.tweens.add({ targets: right, x: W - 300, duration: 450, ease: 'Back.easeOut' });
 
-    const vs = this.add.text(W / 2, H / 2 - 40, 'VS', { fontFamily: FONT, fontSize: '170px', color: '#ffd23a', stroke: '#000', strokeThickness: 14 }).setOrigin(0.5).setScale(3).setAlpha(0);
+    const vs = this.add.text(W / 2, H / 2 - 40, 'VS', { fontFamily: FONT_TITLE, fontSize: '190px', color: '#ffd23a', stroke: '#000', strokeThickness: 14 }).setOrigin(0.5).setScale(3).setAlpha(0);
     this.tweens.add({ targets: vs, scale: 1, alpha: 1, duration: 300, delay: 350, ease: 'Back.easeOut', onStart: () => Sfx.heavyHit() });
 
     const style = { fontFamily: FONT, fontSize: '44px', color: '#fff', stroke: '#000', strokeThickness: 7 };
-    this.add.text(40, 40, a.name.toUpperCase(), style);
-    this.add.text(W - 40, 40, b.name.toUpperCase(), style).setOrigin(1, 0);
+    const fit = (t) => { if (t.width > 540) t.setFontSize(Math.floor(44 * 540 / t.width)); return t; };
+    fit(this.add.text(40, 40, a.name.toUpperCase(), style));
+    fit(this.add.text(W - 40, 40, b.name.toUpperCase(), style).setOrigin(1, 0));
     this.add.text(W / 2, H - 50, `${st.name.toUpperCase()} — ${st.place.toUpperCase()}`, { fontFamily: FONT, fontSize: '28px', color: '#fff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5);
     if (this.cfg.mode === 'arcade') {
       this.add.text(W / 2, 110, `COMBAT ${this.cfg.ladderIndex + 1} / ${this.cfg.ladder.length}`, { fontFamily: FONT, fontSize: '30px', color: '#ffd23a', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5);
     }
     Sfx.announce(`${a.name} contre ${b.name}`);
 
-    const go = () => { if (this.done) return; this.done = true; this.scene.start('Fight', this.cfg); };
+    // Chargement des poses articulées des deux combattants pendant l'écran VS
+    const rigs = this.cache.json.get('rigs');
+    let loaded = false, wantGo = false;
+    for (const id of [a.id, b.id]) {
+      if (!this.textures.exists(`r_${id}`)) {
+        this.load.spritesheet(`r_${id}`, `assets/rigs/${id}.webp`, { frameWidth: rigs[id].frameWidth, frameHeight: rigs[id].frameHeight });
+      }
+    }
+    const loading = this.add.text(W / 2, H - 100, '', { fontFamily: FONT, fontSize: '20px', color: '#ffffffaa' }).setOrigin(0.5);
+    this.load.on('progress', (v) => loading.setText(`Préparation du combat… ${Math.round(v * 100)} %`));
+    this.load.once('complete', () => { loaded = true; loading.setText(''); if (wantGo) go(); });
+    this.load.start();
+    if (this.load.totalToLoad === 0) loaded = true;
+
+    const go = () => {
+      if (this.done) return;
+      if (!loaded) { wantGo = true; return; }
+      this.done = true; this.scene.start('Fight', this.cfg);
+    };
     this.time.delayedCall(2600, go);
     this.input.once('pointerdown', () => this.time.delayedCall(200, go));
     this.input.keyboard?.once('keydown', go);

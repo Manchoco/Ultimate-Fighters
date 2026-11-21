@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FIGHTERS } from '../data/fighters.js';
 import { Sfx, Music } from '../systems/Sfx.js';
-import { FONT, button, fullscreenButton, muteButton } from './ui.js';
+import { FONT, FONT_TITLE, button, fullscreenButton, muteButton } from './ui.js';
 
 export const LEVEL_NAMES = ['FACILE', 'NORMAL', 'DIFFICILE'];
 
@@ -30,7 +30,7 @@ export class TitleScene extends Phaser.Scene {
     });
 
     const title = this.add.text(W / 2, 128, 'ULTIMATE\nFIGHTERS', {
-      fontFamily: FONT, fontSize: '96px', color: '#ffd23a', align: 'center', stroke: '#2a0a00', strokeThickness: 14, lineSpacing: -14,
+      fontFamily: FONT_TITLE, fontSize: '112px', color: '#ffd23a', align: 'center', stroke: '#2a0a00', strokeThickness: 16, lineSpacing: -6,
     }).setOrigin(0.5, 0.5);
     title.setShadow(0, 8, '#000', 12, true, true);
     this.tweens.add({ targets: title, scale: 1.03, yoyo: true, repeat: -1, duration: 1400, ease: 'Sine.easeInOut' });
@@ -77,7 +77,7 @@ export class TitleScene extends Phaser.Scene {
       'La jauge SUPER se remplit quand tu frappes et quand tu encaisses.',
       'Quand elle clignote, déclenche la super attaque de ton combattant !',
     ].join('\n');
-    const t = this.add.text(W / 2, 120, body, { fontFamily: 'Arial', fontSize: '21px', color: '#fff', align: 'center', lineSpacing: 7 }).setOrigin(0.5, 0);
+    const t = this.add.text(W / 2, 120, body, { fontFamily: FONT, fontSize: '21px', color: '#fff', align: 'center', lineSpacing: 7 }).setOrigin(0.5, 0);
     const close = button(this, W / 2, H - 60, 'FERMER', () => c.destroy());
     c.add([bg, txt, t, close]);
   }

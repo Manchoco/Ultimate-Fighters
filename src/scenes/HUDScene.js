@@ -3,7 +3,7 @@ import { Controls } from '../systems/Controls.js';
 import { MAX_HP, MAX_SUPER } from '../systems/Fighter.js';
 import { Sfx } from '../systems/Sfx.js';
 
-const FONT = 'Impact, "Arial Black", sans-serif';
+import { FONT } from './ui.js';
 
 // Interface du combat, dans une scène séparée pour ne pas suivre le zoom de la caméra.
 export class HUDScene extends Phaser.Scene {
@@ -57,7 +57,7 @@ export class HUDScene extends Phaser.Scene {
     // Aide clavier (PC) au premier round
     if (!this.controls.touchEnabled) {
       const help = this.add.text(W / 2, 708, 'Déplacement : ← → / Q D · Saut : ↑ / Z · Garde : reculer · J coup de poing · K coup de pied · L spécial 1 · I spécial 2 · O super · Échap pause', {
-        fontFamily: 'Arial', fontSize: '15px', color: '#fff', backgroundColor: '#00000099', padding: { x: 10, y: 4 },
+        fontFamily: FONT, fontSize: '15px', color: '#fff', backgroundColor: '#00000099', padding: { x: 10, y: 4 },
       }).setOrigin(0.5, 1);
       this.time.delayedCall(9000, () => this.tweens.add({ targets: help, alpha: 0, duration: 800 }));
     }
@@ -88,7 +88,10 @@ export class HUDScene extends Phaser.Scene {
     if (!this.bannerText) return;
     const t = this.bannerText;
     this.tweens.killTweensOf(t);
-    t.setText(text).setColor(color).setAlpha(1).setScale(1.8);
+    t.setFontSize(96).setText(text).setColor(color);
+    const maxW = this.scale.width - 80; // la police Ojuju est large : on réduit si besoin
+    if (t.width > maxW) t.setFontSize(Math.floor(96 * maxW / t.width));
+    t.setAlpha(1).setScale(1.8);
     this.tweens.add({ targets: t, scale: 1, duration: 220, ease: 'Back.easeOut' });
     this.tweens.add({ targets: t, alpha: 0, delay: dur, duration: 250 });
   }

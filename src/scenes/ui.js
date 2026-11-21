@@ -1,6 +1,8 @@
 import { Sfx } from '../systems/Sfx.js';
 
-export const FONT = 'Impact, "Arial Black", sans-serif';
+// Polices africaines libres (OFL) : Ojuju pour l'interface, Sankofa Display pour les titres
+export const FONT = '"Ojuju", Impact, sans-serif';
+export const FONT_TITLE = '"Sankofa Display", "Ojuju", serif';
 
 // Bouton texte réutilisable (souris, tactile, clavier via focus externe)
 export function button(scene, x, y, label, cb, opts = {}) {

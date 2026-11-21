@@ -49,9 +49,23 @@ export class Effects {
     s.time.delayedCall(1600, () => { ev.remove(); s.tweens.add({ targets: b, alpha: 0, scale: 1.3, duration: 200, onComplete: () => b.destroy() }); });
   }
 
+  // nuage de poussière au sol (atterrissage, chute, glissade)
+  dust(x, y, power = 1) {
+    const s = this.scene;
+    const n = Math.round(5 + power * 7);
+    for (let i = 0; i < n; i++) {
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      const p = s.add.circle(x + Phaser.Math.Between(-20, 20), y - 6, Phaser.Math.Between(6, 14) * (0.6 + power * 0.4), 0xd8c7a6, 0.55).setDepth(11);
+      s.tweens.add({
+        targets: p, x: p.x + dir * Phaser.Math.Between(30, 110) * power, y: y - Phaser.Math.Between(10, 50) * power,
+        scale: 1.8, alpha: 0, duration: Phaser.Math.Between(380, 640), ease: 'Quad.easeOut', onComplete: () => p.destroy(),
+      });
+    }
+  }
+
   floatText(x, y, text, color = '#ffffff', size = 40) {
     const t = this.scene.add.text(x, y, text, {
-      fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: `${size}px`, color, stroke: '#000', strokeThickness: 6,
+      fontFamily: '"Ojuju", Impact, sans-serif', fontSize: `${size}px`, color, stroke: '#000', strokeThickness: 6,
     }).setOrigin(0.5).setDepth(60);
     this.scene.tweens.add({ targets: t, y: y - 60, alpha: 0, duration: 900, ease: 'Quad.easeOut', onComplete: () => t.destroy() });
     return t;
