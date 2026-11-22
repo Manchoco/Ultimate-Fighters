@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FIGHTERS, AHOU, BOSS } from '../data/fighters.js';
+import { Assets } from '../systems/Assets.js';
 import { STAGES } from '../data/stages.js';
 import { Sfx, Music } from '../systems/Sfx.js';
 import { FONT, button, fullscreenButton } from './ui.js';
@@ -24,7 +25,7 @@ export class SelectScene extends Phaser.Scene {
   create() {
     const W = this.scale.width, H = this.scale.height;
     this.add.rectangle(0, 0, W, H, 0x0b0820).setOrigin(0);
-    const bg = this.add.image(W / 2, H / 2, 'st_tambour').setAlpha(0.25);
+    const bg = this.add.image(W / 2, H / 2, Assets.stageKey('tambour')).setAlpha(0.25);
     bg.setScale(H / bg.height);
     Music.play(this, 'menu', 0.3);
 
@@ -132,12 +133,14 @@ export class SelectScene extends Phaser.Scene {
     if (this.step === 'p1') {
       this.choice.p1 = f.id;
       this.choice.costume = this.costume;
+      Assets.prefetch([Assets.rig(f.id), Assets.art(f.id)]); // ses animations se téléchargent pendant la suite du choix
       Sfx.announce(f.name, [f.id]);
       if (this.mode === 'story') {
         // 4 adversaires au hasard, puis Kôrô dans la Forêt des Masques
         const ladder = Phaser.Utils.Array.Shuffle(this.roster.filter((x) => x.id !== f.id).map((x) => x.id)).slice(0, 4).concat(BOSS.id);
         const stages = Phaser.Utils.Array.Shuffle(STAGES.filter((x) => x.id !== 'foret').map((x) => x.id)).slice(0, 4).concat('foret');
         Music.stop(this);
+        Assets.prefetch([...Assets.forFight({ p1: f.id, p2: ladder[0], stage: stages[0] })]); // pendant la lecture de l'intro
         this.scene.start('Story', { part: 'intro', p1: f.id, p2: ladder[0], stage: stages[0], mode: 'story', level: this.level, ladder, stages, ladderIndex: 0, costume: this.costume, score: 0 });
         return;
       }
@@ -145,6 +148,7 @@ export class SelectScene extends Phaser.Scene {
         const ladder = Phaser.Utils.Array.Shuffle(FIGHTERS.filter((x) => x.id !== f.id).map((x) => x.id));
         const stages = Phaser.Utils.Array.Shuffle(STAGES.map((s) => s.id));
         Music.stop(this);
+        Assets.prefetch(Assets.forFight({ p1: f.id, p2: ladder[0], stage: stages[0] }));
         this.scene.start('Versus', { p1: f.id, p2: ladder[0], stage: stages[0], mode: 'arcade', level: this.level, ladder, stages, ladderIndex: 0, costume: this.costume, score: 0 });
         return;
       }
@@ -155,6 +159,7 @@ export class SelectScene extends Phaser.Scene {
     }
     if (this.step === 'p2') {
       this.choice.p2 = f.id;
+      Assets.prefetch([Assets.rig(f.id), Assets.art(f.id)]);
       this.openStages();
     }
   }
@@ -171,10 +176,11 @@ export class SelectScene extends Phaser.Scene {
       const col = i % 4, row = Math.floor(i / 4);
       const x = 170 + col * 313, y = 200 + row * 250;
       // vignette = partie centrale du panorama
-      const img = this.add.image(x, y, `st_${s.id}`).setScale(0.26);
-      const cw = 1030; const cx = Math.round((img.width - cw) / 2);
-      img.setCrop(cx, 0, cw, 720);
-      const frame = this.add.rectangle(x, y, cw * 0.26 + 8, 720 * 0.26 + 8).setStrokeStyle(4, 0x555577).setInteractive({ useHandCursor: true });
+      const img = this.add.image(x, y, `stt_${s.id}`).setScale(0.26 * 2626 / 700);
+      const k = img.width / 2626; // recadrage exprimé à l'échelle de la vignette
+      const cw = Math.round(1030 * k); const cx = Math.round((img.width - cw) / 2);
+      img.setCrop(cx, 0, cw, img.height);
+      const frame = this.add.rectangle(x, y, cw * img.scaleX + 8, img.height * img.scaleY + 8).setStrokeStyle(4, 0x555577).setInteractive({ useHandCursor: true });
       const name = this.add.text(x, y + 104, s.name.toUpperCase(), { fontFamily: FONT, fontSize: '20px', color: '#fff', stroke: '#000', strokeThickness: 4, align: 'center', wordWrap: { width: 280 } }).setOrigin(0.5, 0);
       frame.on('pointerdown', () => { if (this.stageCursor === i) this.confirm(); else { this.stageCursor = i; Sfx.move(); this.refreshStages(); } });
       this.stageUI.add([img, frame, name]);
@@ -192,6 +198,7 @@ export class SelectScene extends Phaser.Scene {
 
   startFight(stage) {
     Music.stop(this);
+    Assets.prefetch(Assets.forFight({ p1: this.choice.p1, p2: this.choice.p2, stage }));
     this.scene.start('Versus', { p1: this.choice.p1, p2: this.choice.p2, stage, mode: this.mode, level: this.level, costume: this.choice.costume || 0, score: 0 });
   }
 

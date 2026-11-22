@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CHALLENGES, Progress, UNLOCKS } from '../systems/Progress.js';
 import { FONT, FONT_TITLE, button } from './ui.js';
+import { Assets } from '../systems/Assets.js';
 
 // Liste des défis, de leur état et des récompenses
 export class ChallengesScene extends Phaser.Scene {
@@ -10,7 +11,7 @@ export class ChallengesScene extends Phaser.Scene {
     const W = this.scale.width, H = this.scale.height;
     const p = Progress.get();
     const n = Object.keys(p.done).length;
-    const bg = this.add.image(W / 2, H / 2, 'st_foret'); bg.setScale(H / bg.height).setAlpha(0.3);
+    const bg = this.add.image(W / 2, H / 2, Assets.stageKey('foret')); bg.setScale(H / bg.height).setAlpha(0.3);
     this.add.rectangle(0, 0, W, H, 0x0b0820, 0.6).setOrigin(0);
     this.add.text(W / 2, 46, 'DÉFIS', { fontFamily: FONT_TITLE, fontSize: '64px', color: '#ffd23a', stroke: '#000', strokeThickness: 8 }).setOrigin(0.5);
     this.add.text(W / 2, 100, `${n} / ${CHALLENGES.length} réussis  ·  Meilleur score Arcade : ${p.best.toLocaleString('fr-FR')}`, { fontFamily: FONT, fontSize: '22px', color: '#fff' }).setOrigin(0.5);

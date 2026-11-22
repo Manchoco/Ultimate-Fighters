@@ -1,3 +1,4 @@
+import { Assets } from '../systems/Assets.js';
 import Phaser from 'phaser';
 import { fighterById } from '../data/fighters.js';
 import { Sfx, Music } from '../systems/Sfx.js';
@@ -18,7 +19,7 @@ export class ResultScene extends Phaser.Scene {
     const champion = won && ladderMode && c.ladderIndex >= c.ladder.length - 1;
     const winner = won ? me : them;
 
-    const bg = this.add.image(W / 2, H / 2, `st_${c.stage}`); bg.setScale(H / bg.height).setAlpha(0.35);
+    const bg = this.add.image(W / 2, H / 2, Assets.stageKey(c.stage)); bg.setScale(H / bg.height).setAlpha(0.35);
     this.add.rectangle(0, 0, W, H, won ? 0x1a1200 : 0x14000a, 0.6).setOrigin(0);
     const img = this.add.image(330, H, `f_${winner.id}`).setOrigin(0.5, 1); img.setScale(640 / img.height);
     this.tweens.add({ targets: img, y: H - 10, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.easeInOut' });

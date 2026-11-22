@@ -5,6 +5,7 @@ import { Sfx } from '../systems/Sfx.js';
 import { FONT, FONT_TITLE } from './ui.js';
 import { applyCostume } from '../systems/Progress.js';
 import { BOSS_TAUNT } from '../data/story.js';
+import { Assets } from '../systems/Assets.js';
 
 // Écran « face à face » avant chaque combat.
 export class VersusScene extends Phaser.Scene {
@@ -16,7 +17,7 @@ export class VersusScene extends Phaser.Scene {
     const W = this.scale.width, H = this.scale.height;
     const a = fighterById(this.cfg.p1), b = fighterById(this.cfg.p2);
     const st = STAGES.find((s) => s.id === this.cfg.stage);
-    const bg = this.add.image(W / 2, H / 2, `st_${st.id}`); bg.setScale(H / bg.height).setAlpha(0.45);
+    const bg = this.add.image(W / 2, H / 2, Assets.stageKey(st.id)); bg.setScale(H / bg.height).setAlpha(0.45);
     this.add.rectangle(0, 0, W / 2, H, a.color, 0.35).setOrigin(0);
     this.add.rectangle(W / 2, 0, W / 2, H, b.color, 0.35).setOrigin(0);
 
@@ -43,24 +44,15 @@ export class VersusScene extends Phaser.Scene {
     }
     Sfx.announce(`${a.name} contre ${b.name}`, [a.id, 'contre', b.id]);
 
-    // Chargement des poses articulées des deux combattants pendant l'écran VS
-    const rigs = this.cache.json.get('rigs');
+    // Tout ce qu'il faut pour le combat (souvent déjà téléchargé pendant la sélection)
     let loaded = false, wantGo = false;
-    for (const id of [a.id, b.id]) {
-      if (!this.textures.exists(`r_${id}`)) {
-        this.load.spritesheet(`r_${id}`, `assets/rigs/${id}.webp`, { frameWidth: rigs[id].frameWidth, frameHeight: rigs[id].frameHeight });
-      }
-    }
     const loading = this.add.text(W / 2, H - 100, '', { fontFamily: FONT, fontSize: '20px', color: '#ffffffaa' }).setOrigin(0.5);
-    this.load.off('progress'); // évite d'empiler les écouteurs d'un combat à l'autre
-    this.load.on('progress', (v) => loading.active && loading.setText(`Préparation du combat… ${Math.round(v * 100)} %`));
-    this.load.once('complete', () => { loaded = true; loading.setText(''); if (wantGo) go(); });
-    this.load.start();
-    if (this.load.totalToLoad === 0) loaded = true;
+    Assets.ensure(Assets.forFight(this.cfg), () => { loaded = true; if (loading.active) loading.setText(''); if (wantGo) go(); },
+      (v) => { if (loading.active && wantGo) loading.setText(`Préparation du combat… ${Math.round(v * 100)} %`); });
 
     const go = () => {
       if (this.done) return;
-      if (!loaded) { wantGo = true; return; }
+      if (!loaded) { wantGo = true; loading.setText('Préparation du combat…'); return; }
       this.done = true; this.scene.start('Fight', this.cfg);
     };
     this.time.delayedCall(b.boss ? 4200 : 2600, go);

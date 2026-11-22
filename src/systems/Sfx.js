@@ -1,3 +1,4 @@
+import { Assets } from './Assets.js';
 // Bruitages synthétisés en direct avec la Web Audio API (aucun fichier, aucun droit d'auteur)
 // + lecture des musiques (fichiers libres de droits dans public/assets/audio).
 let ctx = null;
@@ -143,12 +144,19 @@ export const Sfx = {
 
 // Musique : un seul morceau à la fois, en boucle, avec fondu.
 export const Music = {
+  // si la musique n'est pas encore téléchargée, on la télécharge puis on la lance
+  // (sauf si entre-temps une autre musique a été demandée ou si l'écran a changé)
+  wanted: null,
   current: null,
   key: null,
   play(scene, key, volume = 0.35, loop = true) {
     if (this.key === key && this.current && this.current.isPlaying) return;
     this.stop(scene);
-    if (!scene.cache.audio.exists(key)) return;
+    this.wanted = key;
+    if (!scene.cache.audio.exists(key)) {
+      Assets.ensure([Assets.music(key)], () => { if (this.wanted === key && scene.sys.isActive() && scene.cache.audio.exists(key)) this.play(scene, key, volume, loop); });
+      return;
+    }
     this.key = key;
     this.current = scene.sound.add(key, { loop, volume: 0 });
     this.current.play();
@@ -158,8 +166,9 @@ export const Music = {
     if (this.current) {
       const s = this.current;
       this.current = null; this.key = null;
-      if (scene && scene.tweens) scene.tweens.add({ targets: s, volume: 0, duration: 400, onComplete: () => s.destroy() });
-      else s.destroy();
+      // fondu de sortie ; la destruction est garantie même si l'écran se ferme avant la fin du fondu
+      if (scene && scene.tweens) scene.tweens.add({ targets: s, volume: 0, duration: 400 });
+      setTimeout(() => { try { s.destroy(); } catch (e) { /* déjà détruite */ } }, 450);
     }
   },
 };

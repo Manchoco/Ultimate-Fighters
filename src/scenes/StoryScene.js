@@ -4,6 +4,7 @@ import { PROLOGUE, STORY } from '../data/story.js';
 import { Sfx, Music } from '../systems/Sfx.js';
 import { FONT, FONT_TITLE, button } from './ui.js';
 import { applyCostume } from '../systems/Progress.js';
+import { Assets } from '../systems/Assets.js';
 
 // Cartes de récit du mode Histoire (introduction avant le 1er combat, fin après le boss).
 // Le texte s'écrit lettre par lettre ; toucher / cliquer / une touche : finir la phrase, puis passer.
@@ -20,7 +21,7 @@ export class StoryScene extends Phaser.Scene {
     this.cards = ending ? story.ending : [...PROLOGUE, ...story.intro];
     const nProlog = ending ? 0 : PROLOGUE.length;
 
-    const bg = this.add.image(W / 2, H / 2, `st_${ending ? 'foret' : 'tambour'}`);
+    const bg = this.add.image(W / 2, H / 2, Assets.stageKey(ending ? 'foret' : 'tambour'));
     bg.setScale(Math.max(W / bg.width, H / bg.height)).setAlpha(0.5);
     this.tweens.add({ targets: bg, scale: bg.scale * 1.08, duration: 20000 });
     this.add.rectangle(0, 0, W, H, 0x07040f, 0.45).setOrigin(0);

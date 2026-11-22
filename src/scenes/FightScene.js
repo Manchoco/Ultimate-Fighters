@@ -9,6 +9,7 @@ import { applyCostume } from '../systems/Progress.js';
 import { Arena } from '../systems/Arena.js';
 import { FONT } from './ui.js';
 import { Adapt } from '../systems/Adapt.js';
+import { Assets } from '../systems/Assets.js';
 
 const ROUND_TIME = 99;
 const ROUNDS_TO_WIN = 2;
@@ -59,7 +60,12 @@ export class FightScene extends Phaser.Scene {
 
     this.scene.launch('HUD', { fight: this });
     this.hud = this.scene.get('HUD');
-    Music.play(this, this.p2?.data?.boss ? 'theme3' : this.stageData.music, 0.3); // musique de boss contre Kôrô
+    Music.play(this, Assets.fightMusic(this.cfg), 0.3); // musique de l'arène (ou du boss contre Kôrô)
+    // Arcade / Histoire : le combat suivant se télécharge pendant celui-ci
+    const c = this.cfg; const next = (c.ladderIndex ?? -1) + 1;
+    if (c.ladder && next < c.ladder.length) {
+      this.time.delayedCall(4000, () => Assets.prefetch(Assets.forFight({ p1: c.p1, p2: c.ladder[next], stage: c.stages[next % c.stages.length] })));
+    }
 
     this.input.keyboard?.on('keydown-ESC', () => this.togglePause());
     this.input.keyboard?.on('keydown-P', () => this.togglePause());

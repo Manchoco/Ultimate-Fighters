@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 from scipy.ndimage import map_coordinates, zoom
 
-FD = 'public/assets/fighters/'
+FD = 'tools/src/'  # illustrations PNG d'origine (sources, non publiées)
 OUT = 'public/assets/rigs/'
 poses = json.load(open('tools/poses.json'))
 # Archer : articulations placées à la main (MediaPipe ne le détecte pas)
@@ -245,7 +245,7 @@ def build(name):
     cols = 5; rows = math.ceil(len(frames) / cols)
     sheet = Image.new('RGBA', (FW * cols, FH * rows))
     for i, f in enumerate(frames): sheet.paste(f, ((i % cols) * FW, (i // cols) * FH))
-    sheet.save(OUT + name + '.webp', 'WEBP', quality=88, method=6)
+    sheet.save(OUT + name + '.webp', 'WEBP', quality=78, method=6)
     meta = {'frameWidth': FW, 'frameHeight': FH, 'bodyHeight': H, 'originY': (oy + H) / FH, 'frames': ORDER}
     return meta, sheet
 
