@@ -116,8 +116,21 @@ export const Sfx = {
   move() { tone({ type: 'triangle', f0: 520, f1: 520, dur: 0.04, vol: 0.12 }); },
   confirm() { tone({ type: 'triangle', f0: 523, dur: 0.1, vol: 0.25 }); tone({ type: 'triangle', f0: 784, dur: 0.18, vol: 0.25, delay: 0.09 }); },
   // Annonceur : synthèse vocale du navigateur (voix française si disponible)
-  announce(text) {
-    if (muted || !('speechSynthesis' in window)) return;
+  // Annonceur : si tous les enregistrements de la phrase existent (public/assets/voice, déclarés
+  // dans voices.json), on les joue à la suite ; sinon on utilise la voix de synthèse du navigateur.
+  voiceGame: null,
+  announce(text, keys) {
+    if (muted) return;
+    const snd = this.voiceGame?.sound;
+    if (keys && snd && keys.every((k) => this.voiceGame.cache.audio.exists(`v_${k}`))) {
+      try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+      this.voiceSeq?.forEach((s) => s.destroy());
+      this.voiceSeq = keys.map((k) => snd.add(`v_${k}`, { volume: 1 }));
+      this.voiceSeq.forEach((s, i) => { if (i < this.voiceSeq.length - 1) s.once('complete', () => this.voiceSeq?.[i + 1]?.play()); });
+      this.voiceSeq[0].play();
+      return;
+    }
+    if (!('speechSynthesis' in window)) return;
     try {
       const u = new SpeechSynthesisUtterance(text);
       u.lang = 'fr-FR'; u.rate = 0.95; u.pitch = 0.6; u.volume = 1;

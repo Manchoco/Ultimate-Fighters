@@ -57,7 +57,7 @@ export class FightScene extends Phaser.Scene {
 
     this.scene.launch('HUD', { fight: this });
     this.hud = this.scene.get('HUD');
-    Music.play(this, this.stageData.music, 0.3);
+    Music.play(this, this.p2?.data?.boss ? 'theme3' : this.stageData.music, 0.3); // musique de boss contre Kôrô
 
     this.input.keyboard?.on('keydown-ESC', () => this.togglePause());
     this.input.keyboard?.on('keydown-P', () => this.togglePause());
@@ -86,10 +86,10 @@ export class FightScene extends Phaser.Scene {
     const final = this.p1.wins === 1 && this.p2.wins === 1;
     const label = final ? 'ROUND FINAL' : `ROUND ${this.round}`;
     this.hud.banner(label, '#ffffff', 1100);
-    Sfx.announce(final ? 'Round final' : `Round ${this.round}`);
+    Sfx.announce(final ? 'Round final' : `Round ${this.round}`, [final ? 'roundfinal' : `round${this.round}`]);
     this.time.delayedCall(1300, () => {
       this.hud.banner('COMBATTEZ !', '#ffd23a', 800);
-      Sfx.announce('Combattez !');
+      Sfx.announce('Combattez !', ['combattez']);
       this.p1.setState('idle'); this.p2.setState('idle');
       this.phase = 'fight';
     });
@@ -102,12 +102,12 @@ export class FightScene extends Phaser.Scene {
     if (reason === 'ko') {
       Sfx.ko(); this.arena.cheer(1.6);
       this.hud.banner('K.O. !', '#ff3b3b', 1600);
-      Sfx.announce('K.O.');
+      Sfx.announce('K.O.', ['ko']);
       this.slowmo = 0.35;
       this.time.delayedCall(450, () => { this.slowmo = 1; });
     } else {
       this.hud.banner(winner ? 'TEMPS ÉCOULÉ !' : 'ÉGALITÉ !', '#ffffff', 1600);
-      Sfx.announce(winner ? 'Temps écoulé' : 'Égalité');
+      Sfx.announce(winner ? 'Temps écoulé' : 'Égalité', [winner ? 'temps' : 'egalite']);
     }
     if (winner) winner.wins++;
     if (winner === this.p1) {
@@ -312,7 +312,7 @@ export class FightScene extends Phaser.Scene {
     const dark = this.add.rectangle(0, 0, this.worldW, 720, 0x000000, 0).setOrigin(0).setDepth(15);
     this.tweens.add({ targets: dark, fillAlpha: 0.6, duration: 150 });
     Sfx.superStart();
-    Sfx.announce(f.data.sup.name);
+    Sfx.announce(f.data.sup.name, [f.data.sup.id]);
     this.hud.superSplash(f, f === this.p1 ? 'left' : 'right');
     cam.zoomTo(1.25, 250, 'Quad.easeOut', true);
     cam.pan(f.x, f.y - 200, 250, 'Quad.easeOut', true);

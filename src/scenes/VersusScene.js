@@ -41,7 +41,7 @@ export class VersusScene extends Phaser.Scene {
     } else if (this.cfg.mode === 'arcade' || this.cfg.mode === 'story') {
       this.add.text(W / 2, 110, `COMBAT ${this.cfg.ladderIndex + 1} / ${this.cfg.ladder.length}`, { fontFamily: FONT, fontSize: '30px', color: '#ffd23a', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5);
     }
-    Sfx.announce(`${a.name} contre ${b.name}`);
+    Sfx.announce(`${a.name} contre ${b.name}`, [a.id, 'contre', b.id]);
 
     // Chargement des poses articulées des deux combattants pendant l'écran VS
     const rigs = this.cache.json.get('rigs');

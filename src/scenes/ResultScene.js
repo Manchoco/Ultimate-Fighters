@@ -26,7 +26,7 @@ export class ResultScene extends Phaser.Scene {
     if (won) Music.play(this, 'victory', 0.45, false);
     const head = champion ? 'CHAMPION !' : won ? 'VICTOIRE !' : 'DÉFAITE…';
     this.add.text(860, 110, head, { fontFamily: FONT, fontSize: champion ? '96px' : '110px', color: won ? '#ffd23a' : '#ff4b4b', stroke: '#000', strokeThickness: 12 }).setOrigin(0.5);
-    Sfx.announce(champion ? `${me.name}, champion d'Ultimate Fighters !` : won ? 'Victoire !' : 'Défaite');
+    Sfx.announce(champion ? `${me.name}, champion d'Ultimate Fighters !` : won ? 'Victoire !' : 'Défaite', champion ? [me.id, 'champion'] : [won ? 'victoire' : 'defaite']);
 
     const line = champion
       ? (c.mode === 'story' ? `${me.name} a vaincu Kôrô, le Masque Souverain !` : `${me.name} a battu les ${c.ladder.length} combattants.\nTu es le champion d'Ultimate Fighters !`)

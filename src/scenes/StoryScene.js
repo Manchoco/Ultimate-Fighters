@@ -93,7 +93,7 @@ export class StoryScene extends Phaser.Scene {
     const t = this.add.text(W / 2, H / 2 - 90, 'FIN', { fontFamily: FONT_TITLE, fontSize: '140px', color: '#ffd23a', stroke: '#000', strokeThickness: 12 }).setOrigin(0.5).setDepth(51).setAlpha(0);
     const sub = this.add.text(W / 2, H / 2 + 20, `L'histoire de ${me.name}`, { fontFamily: FONT, fontSize: '32px', color: '#fff' }).setOrigin(0.5).setDepth(51).setAlpha(0);
     this.tweens.add({ targets: [t, sub], alpha: 1, duration: 700, delay: 300 });
-    Sfx.announce(`Fin de l'histoire de ${me.name}`);
+    Sfx.announce(`Fin de l'histoire de ${me.name}`, ['finhistoire', me.id]);
     this.time.delayedCall(900, () => {
       button(this, W / 2, H / 2 + 120, 'MENU', () => { Music.stop(this); this.scene.start('Title'); }).setDepth(52);
       button(this, W / 2, H / 2 + 195, 'AUTRE HISTOIRE', () => { Music.stop(this); this.scene.start('Select', { mode: 'story', level: this.cfg.level }); }, { size: 28 }).setDepth(52);

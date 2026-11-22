@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ALL_FIGHTERS } from '../data/fighters.js';
 import { STAGES } from '../data/stages.js';
+import { Sfx } from '../systems/Sfx.js';
 
 export class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
@@ -20,11 +21,18 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`p_${f.id}`, `assets/portraits/${f.id}.png`);
     }
     this.load.json('rigs', 'assets/rigs/rigs.json');
+    this.load.json('voices', 'assets/voice/voices.json');
     for (const s of STAGES) this.load.image(`st_${s.id}`, `assets/stages/${s.id}.jpg`);
-    for (const m of ['menu', 'theme1', 'theme2', 'theme3', 'victory']) this.load.audio(m, [`assets/audio/${m}.ogg`, `assets/audio/${m}.mp3`]);
+    for (const m of ['menu', 'theme1', 'theme2', 'theme3', 'victory', 'coupe']) this.load.audio(m, [`assets/audio/${m}.ogg`, `assets/audio/${m}.mp3`]);
   }
 
   create() {
-    this.scene.start('Title');
+    // Enregistrements de l'annonceur déclarés dans voices.json (liste vide = voix de synthèse)
+    Sfx.voiceGame = this.game;
+    const files = this.cache.json.get('voices')?.files || [];
+    if (!files.length) { this.scene.start('Title'); return; }
+    for (const f of files) this.load.audio(`v_${f.replace(/\.[a-z0-9]+$/i, '')}`, `assets/voice/${f}`); // ex. « ko.mp3 » → clé v_ko
+    this.load.once('complete', () => this.scene.start('Title'));
+    this.load.start();
   }
 }

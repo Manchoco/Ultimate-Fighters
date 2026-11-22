@@ -132,7 +132,7 @@ export class SelectScene extends Phaser.Scene {
     if (this.step === 'p1') {
       this.choice.p1 = f.id;
       this.choice.costume = this.costume;
-      Sfx.announce(f.name);
+      Sfx.announce(f.name, [f.id]);
       if (this.mode === 'story') {
         // 4 adversaires au hasard, puis Kôrô dans la Forêt des Masques
         const ladder = Phaser.Utils.Array.Shuffle(this.roster.filter((x) => x.id !== f.id).map((x) => x.id)).slice(0, 4).concat(BOSS.id);

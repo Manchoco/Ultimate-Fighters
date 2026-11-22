@@ -35,7 +35,7 @@ Technologies : [Phaser 3](https://phaser.io) + Vite. Les poses sont générées 
 
 ## Crédits
 
-- Illustrations des combattants : créées à partir des visuels fournis par Manchoco (générées avec Canva IA, détourées).
+- Illustrations des combattants : créées à partir des visuels fournis par Manchoco (générées avec Canva IA, détourées). Kôrô, le boss du mode Histoire, est un personnage original généré avec Canva IA.
 - Arènes : visuels fournis par Manchoco.
 - Animations : poses articulées (tête, bras, jambes) générées par déformation « marionnette » de chaque illustration, à partir d'un squelette détecté automatiquement.
 - Polices (licence OFL, programme des polices africaines de Google Fonts) : **Sankofa Display** (Batsirai Madzonga) pour les titres, **Ojuju** (Chisaokwu Joboson) pour l'interface.
@@ -46,3 +46,5 @@ Technologies : [Phaser 3](https://phaser.io) + Vite. Les poses sont générées 
   - Thème 2 : « Fast fight / battle music (looped) » — Ville Nousiainen (mutkanto) — https://opengameart.org/content/fast-fight-battle-music-looped
   - Thème 3 : « Boss Battle (loop) » — Alex McCulloch (Pro Sensory) — https://opengameart.org/content/boss-battle-loop
   - Victoire : « Victory » — https://opengameart.org/content/victory
+- « Coupé-décalé d'Ultimate Fighters » (Place du Grand Tambour, Stade d'Ebimpé, Palais du Gouverneur) : morceau original composé et synthétisé pour le jeu (`tools/coupe.py`), sans échantillon externe.
+- Voix de l'annonceur : voix de synthèse du navigateur, remplaçable par tes propres enregistrements (voir [VOIX.md](VOIX.md)).
