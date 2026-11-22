@@ -85,6 +85,33 @@ export const Sfx = {
     tone({ type: 'sine', f0: 300, f1: 60, dur: 0.9, vol: 0.5 });
     noise({ dur: 0.9, vol: 0.4, freq: 800, sweep: 100, type: 'lowpass' });
   },
+  // ---------- Ambiances d'arène ----------
+  blip(f0, f1, dur, vol, delay = 0, type = 'sine') { tone({ type, f0, f1, dur, vol, delay }); },
+  drum(v = 1) {
+    tone({ type: 'sine', f0: 140, f1: 60, dur: 0.18, vol: 0.12 * v });
+    noise({ dur: 0.05, vol: 0.05 * v, freq: 2500, type: 'bandpass', q: 1.5 });
+  },
+  crowd(power = 1) { noise({ dur: 1.2, vol: 0.12 * power, freq: 900, sweep: 600, q: 0.6 }); },
+  crash() {
+    noise({ dur: 0.35, vol: 0.45, freq: 1800, sweep: 400, q: 0.8 });
+    tone({ type: 'triangle', f0: 600, f1: 200, dur: 0.15, vol: 0.15 });
+  },
+  // bruit continu filtré (vagues, cascade, foule) ; renvoie un objet avec stop()
+  ambientNoise({ type = 'lowpass', freq = 600, vol = 0.05, lfo = 0 }) {
+    const c = ac(); if (!c) return null;
+    const src = c.createBufferSource(); src.buffer = noiseBuffer(c, 2); src.loop = true;
+    const f = c.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    const g = c.createGain(); g.gain.value = vol;
+    src.connect(f).connect(g).connect(master);
+    let osc = null;
+    if (lfo) { // houle : le volume monte et descend lentement
+      osc = c.createOscillator(); const og = c.createGain();
+      osc.frequency.value = lfo; og.gain.value = vol * 0.8;
+      osc.connect(og).connect(g.gain); osc.start();
+    }
+    src.start();
+    return { stop() { try { src.stop(); osc && osc.stop(); } catch (e) { /* déjà arrêté */ } } };
+  },
   select() { tone({ type: 'triangle', f0: 660, f1: 990, dur: 0.09, vol: 0.25 }); },
   move() { tone({ type: 'triangle', f0: 520, f1: 520, dur: 0.04, vol: 0.12 }); },
   confirm() { tone({ type: 'triangle', f0: 523, dur: 0.1, vol: 0.25 }); tone({ type: 'triangle', f0: 784, dur: 0.18, vol: 0.25, delay: 0.09 }); },

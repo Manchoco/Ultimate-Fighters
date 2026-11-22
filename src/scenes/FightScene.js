@@ -6,6 +6,7 @@ import { Sfx, Music } from '../systems/Sfx.js';
 import { fighterById } from '../data/fighters.js';
 import { STAGES } from '../data/stages.js';
 import { applyCostume } from '../systems/Progress.js';
+import { Arena } from '../systems/Arena.js';
 
 const ROUND_TIME = 99;
 const ROUNDS_TO_WIN = 2;
@@ -44,6 +45,7 @@ export class FightScene extends Phaser.Scene {
     this.add.rectangle(0, 0, this.worldW, 720, 0x000000, 0.12).setOrigin(0).setDepth(1);
 
     this.fx = new Effects(this);
+    this.arena = new Arena(this, this.stageData.id);
     const mid = this.worldW / 2;
     this.p1 = new Fighter(this, fighterById(this.cfg.p1), mid - 260, 1, false);
     this.p2 = new Fighter(this, fighterById(this.cfg.p2), mid + 260, -1, true);
@@ -59,7 +61,7 @@ export class FightScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown-ESC', () => this.togglePause());
     this.input.keyboard?.on('keydown-P', () => this.togglePause());
-    this.events.once('shutdown', () => { this.scene.stop('HUD'); });
+    this.events.once('shutdown', () => { this.scene.stop('HUD'); this.arena.destroy(); });
 
     // le HUD doit être prêt avant d'annoncer le round
     this.time.delayedCall(50, () => this.startRound());
@@ -76,6 +78,7 @@ export class FightScene extends Phaser.Scene {
       f.setState('intro');
     }
     this.projectiles.forEach((p) => p.gfx.destroy()); this.projectiles = [];
+    this.arena.resetRound();
     this.timeLeft = ROUND_TIME;
     this.stats.roundDamageTaken = 0;
     this.phase = 'intro';
@@ -97,7 +100,7 @@ export class FightScene extends Phaser.Scene {
     this.phase = 'end';
     const loser = winner ? winner.opponent : null;
     if (reason === 'ko') {
-      Sfx.ko();
+      Sfx.ko(); this.arena.cheer(1.6);
       this.hud.banner('K.O. !', '#ff3b3b', 1600);
       Sfx.announce('K.O.');
       this.slowmo = 0.35;
@@ -175,7 +178,7 @@ export class FightScene extends Phaser.Scene {
     if (!hit.projectile && att.grounded && (def.x <= this.leftBound + 70 || def.x >= this.rightBound - 70)) att.vx = -att.facing * (hit.knock || 150) * 0.8;
     const color = hit.color || 0xffe38a;
     this.fx.spark(cx, cy, color, !!hit.heavy);
-    if (hit.heavy) { Sfx.heavyHit(); this.cameras.main.shake(140, 0.01); } else Sfx.hit(1 + Math.random() * 0.3);
+    if (hit.heavy) { Sfx.heavyHit(); this.cameras.main.shake(140, 0.01); this.arena.cheer(0.7); } else Sfx.hit(1 + Math.random() * 0.3);
     this.hitstop = hit.heavy ? 110 : 60;
     att.superM = Math.min(MAX_SUPER, att.superM + hit.dmg * 0.18);
     // combo
@@ -374,6 +377,7 @@ export class FightScene extends Phaser.Scene {
     }
 
     this.updateProjectiles(dt);
+    if (dt > 0) this.arena.update(dt);
 
     if (!this.camLock) {
       const cam = this.cameras.main;
