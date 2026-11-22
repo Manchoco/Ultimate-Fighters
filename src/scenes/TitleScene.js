@@ -37,10 +37,11 @@ export class TitleScene extends Phaser.Scene {
     this.add.text(W / 2, 262, 'LES LÉGENDES DE CÔTE D\'IVOIRE', { fontFamily: FONT, fontSize: '28px', color: '#ffffff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5);
 
     const go = (mode) => { Sfx.unlock(); this.scene.start('Select', { mode, level: this.registry.get('level') }); };
-    button(this, W / 2 - 170, 330, 'ARCADE', () => go('arcade'), { size: 32 });
-    button(this, W / 2 + 170, 330, 'COMBAT LIBRE', () => go('free'), { size: 32 });
-    button(this, W / 2 - 170, 395, 'ENTRAÎNEMENT', () => go('training'), { size: 28 });
-    button(this, W / 2 + 170, 395, 'DÉFIS', () => this.scene.start('Challenges'), { size: 28 });
+    button(this, W / 2 - 170, 330, 'HISTOIRE', () => go('story'), { size: 32 });
+    button(this, W / 2 + 170, 330, 'ARCADE', () => go('arcade'), { size: 32 });
+    button(this, W / 2 - 255, 395, 'COMBAT LIBRE', () => go('free'), { size: 26 });
+    button(this, W / 2, 395, 'ENTRAÎNEMENT', () => go('training'), { size: 26 });
+    button(this, W / 2 + 255, 395, 'DÉFIS', () => this.scene.start('Challenges'), { size: 26 });
     const lvl = button(this, W / 2, 460, `DIFFICULTÉ : ${LEVEL_NAMES[level]}`, () => {
       level = (level + 1) % 3;
       this.registry.set('level', level);
@@ -56,7 +57,7 @@ export class TitleScene extends Phaser.Scene {
     // La musique ne peut démarrer qu'après une interaction (règle des navigateurs)
     const startMusic = () => Music.play(this, 'menu', 0.35);
     if (!this.sound.locked) startMusic(); else this.sound.once('unlocked', startMusic);
-    this.input.keyboard?.once('keydown-ENTER', () => go('arcade'));
+    this.input.keyboard?.once('keydown-ENTER', () => go('story'));
   }
 
   showHelp() {

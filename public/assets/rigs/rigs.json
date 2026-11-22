@@ -230,5 +230,63 @@
    "win",
    "ko"
   ]
+ },
+ "ahou": {
+  "frameWidth": 715,
+  "frameHeight": 500,
+  "bodyHeight": 400,
+  "originY": 0.976,
+  "frames": [
+   "idle0",
+   "idle1",
+   "walk0",
+   "walk1",
+   "punch0",
+   "punch1",
+   "kick0",
+   "kick1",
+   "low",
+   "crouch",
+   "jump",
+   "airkick",
+   "hit",
+   "hitmid",
+   "block",
+   "special",
+   "upper",
+   "heavy0",
+   "heavy1",
+   "win",
+   "ko"
+  ]
+ },
+ "koro": {
+  "frameWidth": 730,
+  "frameHeight": 500,
+  "bodyHeight": 400,
+  "originY": 0.976,
+  "frames": [
+   "idle0",
+   "idle1",
+   "walk0",
+   "walk1",
+   "punch0",
+   "punch1",
+   "kick0",
+   "kick1",
+   "low",
+   "crouch",
+   "jump",
+   "airkick",
+   "hit",
+   "hitmid",
+   "block",
+   "special",
+   "upper",
+   "heavy0",
+   "heavy1",
+   "win",
+   "ko"
+  ]
  }
 }

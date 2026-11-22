@@ -4,6 +4,7 @@ import { STAGES } from '../data/stages.js';
 import { Sfx } from '../systems/Sfx.js';
 import { FONT, FONT_TITLE } from './ui.js';
 import { applyCostume } from '../systems/Progress.js';
+import { BOSS_TAUNT } from '../data/story.js';
 
 // Écran « face à face » avant chaque combat.
 export class VersusScene extends Phaser.Scene {
@@ -33,7 +34,11 @@ export class VersusScene extends Phaser.Scene {
     fit(this.add.text(40, 40, a.name.toUpperCase(), style));
     fit(this.add.text(W - 40, 40, b.name.toUpperCase(), style).setOrigin(1, 0));
     this.add.text(W / 2, H - 50, `${st.name.toUpperCase()} — ${st.place.toUpperCase()}`, { fontFamily: FONT, fontSize: '28px', color: '#fff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5);
-    if (this.cfg.mode === 'arcade') {
+    if (b.boss) {
+      this.add.text(W / 2, H / 2 + 90, 'COMBAT FINAL', { fontFamily: FONT_TITLE, fontSize: '44px', color: '#ff4b4b', stroke: '#000', strokeThickness: 9 }).setOrigin(0.5).setDepth(5);
+      const q = this.add.text(W / 2, H - 150, `« ${BOSS_TAUNT} »`, { fontFamily: FONT, fontSize: '24px', color: '#ffe9b0', align: 'center', stroke: '#000', strokeThickness: 5, wordWrap: { width: 560 } }).setOrigin(0.5).setAlpha(0);
+      this.tweens.add({ targets: q, alpha: 1, delay: 700, duration: 400 });
+    } else if (this.cfg.mode === 'arcade' || this.cfg.mode === 'story') {
       this.add.text(W / 2, 110, `COMBAT ${this.cfg.ladderIndex + 1} / ${this.cfg.ladder.length}`, { fontFamily: FONT, fontSize: '30px', color: '#ffd23a', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5);
     }
     Sfx.announce(`${a.name} contre ${b.name}`);
@@ -58,7 +63,7 @@ export class VersusScene extends Phaser.Scene {
       if (!loaded) { wantGo = true; return; }
       this.done = true; this.scene.start('Fight', this.cfg);
     };
-    this.time.delayedCall(2600, go);
+    this.time.delayedCall(b.boss ? 4200 : 2600, go);
     this.input.once('pointerdown', () => this.time.delayedCall(200, go));
     this.input.keyboard?.once('keydown', go);
   }

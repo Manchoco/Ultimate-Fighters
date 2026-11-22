@@ -17,12 +17,12 @@ export class ChallengesScene extends Phaser.Scene {
 
     CHALLENGES.forEach((c, i) => {
       const col = i % 2, row = Math.floor(i / 2);
-      const x = 80 + col * 580, y = 150 + row * 72;
+      const x = 80 + col * 580, y = 136 + row * 64;
       const ok = !!p.done[c.id];
-      this.add.rectangle(x, y, 540, 62, ok ? 0x2a5a1f : 0x1c1640, 0.85).setOrigin(0).setStrokeStyle(2, ok ? 0x7dff6a : 0x555577);
-      this.add.text(x + 16, y + 31, ok ? '✔' : '✖', { fontFamily: 'Arial', fontSize: '30px', color: ok ? '#7dff6a' : '#666688' }).setOrigin(0, 0.5);
-      this.add.text(x + 58, y + 8, c.name.toUpperCase(), { fontFamily: FONT, fontSize: '22px', color: ok ? '#ffffff' : '#bbbbdd' });
-      this.add.text(x + 58, y + 36, c.desc, { fontFamily: FONT, fontSize: '15px', color: '#ddd' });
+      this.add.rectangle(x, y, 540, 58, ok ? 0x2a5a1f : 0x1c1640, 0.85).setOrigin(0).setStrokeStyle(2, ok ? 0x7dff6a : 0x555577);
+      this.add.text(x + 16, y + 29, ok ? '✔' : '✖', { fontFamily: 'Arial', fontSize: '30px', color: ok ? '#7dff6a' : '#666688' }).setOrigin(0, 0.5);
+      this.add.text(x + 58, y + 6, c.name.toUpperCase(), { fontFamily: FONT, fontSize: '22px', color: ok ? '#ffffff' : '#bbbbdd' });
+      this.add.text(x + 58, y + 33, c.desc, { fontFamily: FONT, fontSize: '15px', color: '#ddd' });
     });
 
     const rewards = [

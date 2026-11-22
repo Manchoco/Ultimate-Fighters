@@ -61,4 +61,23 @@ export const FIGHTERS = [
   },
 ];
 
-export const fighterById = (id) => FIGHTERS.find((f) => f.id === id);
+// Combattante à débloquer (5 défis réussis) — absente de la grille tant qu'elle est verrouillée
+export const AHOU = {
+  id: 'ahou', name: 'Ahou la Nuit', title: 'La sorcière de minuit',
+  color: 0x8a2be2, stats: { speed: 4, power: 4, defense: 2 },
+  s1: { id: 'midnightFlame', name: 'Flamme de minuit', desc: 'Flamme violette qui traque l\'adversaire', color: 0xa040ff },
+  s2: { id: 'shadowVeil', name: 'Voile d\'ombre', desc: 'Disparaît, une colonne de feu jaillit sous l\'ennemi', color: 0xa040ff },
+  sup: { id: 'eternalNight', name: 'Nuit éternelle', desc: 'Plonge l\'arène dans le noir et vole la vie', color: 0xa040ff },
+};
+
+// Boss final du mode Histoire — jamais sélectionnable
+export const BOSS = {
+  id: 'koro', name: 'Kôrô', title: 'Le Masque Souverain', boss: true,
+  color: 0xc9a227, stats: { speed: 3, power: 5, defense: 5 },
+  s1: { id: 'cowrieFan', name: 'Éventail de cauris', desc: 'Trois cauris en éventail', color: 0xffe9b0 },
+  s2: { id: 'ancestorGuard', name: 'Garde des ancêtres', desc: 'Encaisse deux coups puis riposte', color: 0xffd23a },
+  sup: { id: 'maskDance', name: 'Danse des masques', desc: 'Trois esprits-masques balaient l\'arène', color: 0xffd23a },
+};
+
+export const ALL_FIGHTERS = [...FIGHTERS, AHOU, BOSS];
+export const fighterById = (id) => ALL_FIGHTERS.find((f) => f.id === id);

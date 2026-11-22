@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { FIGHTERS } from '../data/fighters.js';
+import { ALL_FIGHTERS } from '../data/fighters.js';
 import { STAGES } from '../data/stages.js';
 
 export class BootScene extends Phaser.Scene {
@@ -15,7 +15,7 @@ export class BootScene extends Phaser.Scene {
     this.load.on('loaderror', (f) => console.warn('Fichier manquant :', f.key));
     void box;
 
-    for (const f of FIGHTERS) {
+    for (const f of ALL_FIGHTERS) {
       this.load.image(`f_${f.id}`, `assets/fighters/${f.id}.png`);
       this.load.image(`p_${f.id}`, `assets/portraits/${f.id}.png`);
     }

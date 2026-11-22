@@ -1,4 +1,4 @@
-import { FIGHTERS } from '../data/fighters.js';
+import { FIGHTERS, fighterById } from '../data/fighters.js';
 
 // Progression sauvegardée sur l'appareil (localStorage) : défis réussis, déblocages,
 // meilleur score. Aucune donnée personnelle, rien n'est envoyé sur Internet.
@@ -13,6 +13,7 @@ export const CHALLENGES = [
   { id: 'cancel10', name: 'Fluide', desc: 'Faire 10 enchaînements dans un même combat' },
   { id: 'wall', name: 'Muraille', desc: 'Parer 15 coups dans un même combat' },
   { id: 'arcade', name: 'Champion', desc: 'Terminer le mode Arcade' },
+  { id: 'story', name: 'Briseur de masque', desc: 'Vaincre Kôrô en mode Histoire' },
   { id: 'arcadeHard', name: 'Légende', desc: 'Terminer le mode Arcade en Difficile' },
   { id: 'arcade3', name: 'Polyvalent', desc: 'Terminer l\'Arcade avec 3 combattants différents' },
   { id: 'all8', name: 'Toute l\'équipe', desc: 'Gagner un combat avec chacun des 8 combattants' },
@@ -22,7 +23,7 @@ export const CHALLENGES = [
 // Récompenses
 export const UNLOCKS = {
   ahouAt: 5, // Ahou la Nuit se débloque après 5 défis
-  goldAt: 12, // tenue dorée pour tous après les 12 défis
+  goldAt: 13, // tenue dorée pour tous après les 13 défis
 };
 
 function load() {
@@ -68,6 +69,7 @@ export const Progress = {
       p.wonWith[cfg.p1] = true;
       if (FIGHTERS.every((f) => p.wonWith[f.id])) done('all8');
       const champion = cfg.mode === 'arcade' && cfg.ladderIndex >= cfg.ladder.length - 1;
+      if (cfg.mode === 'story' && cfg.ladderIndex >= cfg.ladder.length - 1) done('story');
       if (champion) {
         done('arcade');
         if (cfg.level >= 2) done('arcadeHard');
@@ -75,7 +77,7 @@ export const Progress = {
         if (Object.keys(p.arcadeWith).length >= 3) done('arcade3');
         if (!p.costumes[cfg.p1]) {
           p.costumes[cfg.p1] = true;
-          const f = FIGHTERS.find((x) => x.id === cfg.p1);
+          const f = fighterById(cfg.p1);
           if (f) unlocks.push(`Tenue alternative de ${f.name}`);
         }
       }

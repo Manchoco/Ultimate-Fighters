@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { FIGHTERS } from '../data/fighters.js';
+import { FIGHTERS, AHOU, BOSS } from '../data/fighters.js';
 import { STAGES } from '../data/stages.js';
 import { Sfx, Music } from '../systems/Sfx.js';
 import { FONT, button, fullscreenButton } from './ui.js';
@@ -16,6 +16,9 @@ export class SelectScene extends Phaser.Scene {
     this.cursor = 0;
     this.choice = {};
     this.costume = 0;
+    // Ahou la Nuit rejoint la grille une fois débloquée
+    this.roster = Progress.ahouUnlocked() ? [...FIGHTERS, AHOU] : [...FIGHTERS];
+    this.cols = this.roster.length > 8 ? 5 : 4;
   }
 
   create() {
@@ -27,12 +30,13 @@ export class SelectScene extends Phaser.Scene {
 
     this.header = this.add.text(W / 2, 34, '', { fontFamily: FONT, fontSize: '44px', color: '#ffd23a', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5);
 
-    // Grille de portraits (4 × 2) en bas à droite
-    this.cells = FIGHTERS.map((f, i) => {
-      const col = i % 4, row = Math.floor(i / 4);
-      const x = 700 + col * 132, y = 470 + row * 132;
-      const frame = this.add.rectangle(x, y, 122, 122, 0x000000, 0.6).setStrokeStyle(3, 0x555577);
-      const img = this.add.image(x, y, `p_${f.id}`).setDisplaySize(116, 116).setInteractive({ useHandCursor: true });
+    // Grille de portraits (4 × 2, ou 5 × 2 avec Ahou) en bas à droite
+    const cell = this.cols === 5 ? 104 : 122, step = cell + 10;
+    this.cells = this.roster.map((f, i) => {
+      const col = i % this.cols, row = Math.floor(i / this.cols);
+      const x = (this.cols === 5 ? 690 : 700) + col * step, y = 470 + row * step;
+      const frame = this.add.rectangle(x, y, cell, cell, 0x000000, 0.6).setStrokeStyle(3, 0x555577);
+      const img = this.add.image(x, y, `p_${f.id}`).setDisplaySize(cell - 6, cell - 6).setInteractive({ useHandCursor: true });
       img.on('pointerdown', () => {
         Sfx.unlock();
         if (this.step === 'stage') return;
@@ -42,7 +46,7 @@ export class SelectScene extends Phaser.Scene {
     });
 
     // Fiche du combattant (à gauche)
-    this.big = this.add.image(250, 690, `f_${FIGHTERS[0].id}`).setOrigin(0.5, 1);
+    this.big = this.add.image(250, 690, `f_${this.roster[0].id}`).setOrigin(0.5, 1);
     this.nameTxt = this.add.text(700, 110, '', { fontFamily: FONT, fontSize: '54px', color: '#fff', stroke: '#000', strokeThickness: 7 });
     this.titleTxt = this.add.text(702, 172, '', { fontFamily: FONT, fontSize: '24px', color: '#ffd23a' });
     this.statBars = ['VITESSE', 'PUISSANCE', 'DÉFENSE'].map((lab, i) => {
@@ -76,17 +80,18 @@ export class SelectScene extends Phaser.Scene {
       this.stageCursor = Phaser.Math.Wrap(this.stageCursor + dx + dy * 4, 0, STAGES.length);
       Sfx.move(); this.refreshStages(); return;
     }
-    const col = this.cursor % 4, row = Math.floor(this.cursor / 4);
-    this.cursor = Phaser.Math.Wrap(col + dx, 0, 4) + Phaser.Math.Wrap(row + dy, 0, 2) * 4;
+    const n = this.roster.length, c = this.cols;
+    const col = this.cursor % c, row = Math.floor(this.cursor / c);
+    this.cursor = Math.min(n - 1, Phaser.Math.Wrap(col + dx, 0, c) + Phaser.Math.Wrap(row + dy, 0, Math.ceil(n / c)) * c);
     Sfx.move(); this.refresh();
   }
 
   refresh() {
-    const f = FIGHTERS[this.cursor];
+    const f = this.roster[this.cursor];
     this.header.setText(this.step === 'p1' ? 'CHOISIS TON COMBATTANT' : this.mode === 'training' ? 'CHOISIS TON PARTENAIRE D\'ENTRAÎNEMENT' : 'CHOISIS TON ADVERSAIRE');
     this.cells.forEach((c, i) => {
       const sel = i === this.cursor;
-      const taken = this.choice.p1 === FIGHTERS[i].id && this.step === 'p2';
+      const taken = this.choice.p1 === this.roster[i].id && this.step === 'p2';
       c.frame.setStrokeStyle(sel ? 6 : 3, sel ? (this.step === 'p1' ? 0xffd23a : 0xff3b3b) : taken ? 0x2f7bff : 0x555577);
       c.img.setAlpha(sel ? 1 : 0.7);
     });
@@ -113,7 +118,7 @@ export class SelectScene extends Phaser.Scene {
 
   nextCostume() {
     if (this.step !== 'p1') return;
-    const list = Progress.costumes(FIGHTERS[this.cursor].id);
+    const list = Progress.costumes(this.roster[this.cursor].id);
     if (list.length < 2) return;
     this.costume = list[(list.indexOf(this.costume) + 1) % list.length];
     Sfx.move(); this.refresh();
@@ -122,12 +127,20 @@ export class SelectScene extends Phaser.Scene {
   confirm() {
     Sfx.unlock();
     if (this.step === 'stage') return this.startFight(STAGES[this.stageCursor].id);
-    const f = FIGHTERS[this.cursor];
+    const f = this.roster[this.cursor];
     Sfx.confirm();
     if (this.step === 'p1') {
       this.choice.p1 = f.id;
       this.choice.costume = this.costume;
       Sfx.announce(f.name);
+      if (this.mode === 'story') {
+        // 4 adversaires au hasard, puis Kôrô dans la Forêt des Masques
+        const ladder = Phaser.Utils.Array.Shuffle(this.roster.filter((x) => x.id !== f.id).map((x) => x.id)).slice(0, 4).concat(BOSS.id);
+        const stages = Phaser.Utils.Array.Shuffle(STAGES.filter((x) => x.id !== 'foret').map((x) => x.id)).slice(0, 4).concat('foret');
+        Music.stop(this);
+        this.scene.start('Story', { part: 'intro', p1: f.id, p2: ladder[0], stage: stages[0], mode: 'story', level: this.level, ladder, stages, ladderIndex: 0, costume: this.costume, score: 0 });
+        return;
+      }
       if (this.mode === 'arcade') {
         const ladder = Phaser.Utils.Array.Shuffle(FIGHTERS.filter((x) => x.id !== f.id).map((x) => x.id));
         const stages = Phaser.Utils.Array.Shuffle(STAGES.map((s) => s.id));
@@ -136,7 +149,7 @@ export class SelectScene extends Phaser.Scene {
         return;
       }
       this.step = 'p2';
-      this.cursor = (this.cursor + 1) % FIGHTERS.length;
+      this.cursor = (this.cursor + 1) % this.roster.length;
       this.refresh();
       return;
     }

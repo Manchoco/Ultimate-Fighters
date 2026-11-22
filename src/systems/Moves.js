@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Sfx } from './Sfx.js';
-import { BODY_H } from './Fighter.js';
+import { BODY_H, MAX_HP } from './Fighter.js';
 
 // Les 24 coups uniques du jeu (2 spéciaux + 1 super par combattant).
 // Chaque coup définit :
@@ -396,6 +396,138 @@ export const MOVES = {
         s.fx.laserLine(f.x + f.facing * 80, chestY(f), o.x, chestY(o), 0x7dff6a, 22);
         Sfx.arrow(); Sfx.explosion();
         s.applyHit(f, o, { dmg: 150, hitstun: 600, knock: 640, unblockable: true, color: 0x7dff6a, heavy: true, launch: true, projectile: true });
+      });
+    },
+  },
+
+  // ============================ AHOU LA NUIT ============================
+  // Flamme de minuit : une flamme violette qui suit la hauteur de l'adversaire
+  midnightFlame: {
+    dur: 540, cool: 1500, ai: 'far',
+    pose: (f, t) => (t < 180 ? 'punch0' : 'special'),
+    update(f, t, m) {
+      if (t < 180 || m.fired) return;
+      m.fired = true; Sfx.zap();
+      f.scene.spawnProjectile(f, {
+        color: 0xa040ff, speed: 360, dmg: 80, life: 3, w: 80, h: 80,
+        draw: (scn, g) => {
+          const halo = scn.add.circle(0, 0, 46, 0x7a20ff, 0.3).setBlendMode(Phaser.BlendModes.ADD);
+          const flame = scn.add.triangle(0, -10, -24, 22, 24, 22, 0, -42, 0xc070ff, 0.95).setBlendMode(Phaser.BlendModes.ADD);
+          const core = scn.add.circle(0, 6, 14, 0xffffff, 0.9);
+          g.add([halo, flame, core]);
+          scn.tweens.add({ targets: flame, scaleY: { from: 0.8, to: 1.25 }, yoyo: true, repeat: -1, duration: 120 });
+        },
+        // elle « chasse » : elle se recale lentement sur la poitrine de la cible
+        update: (p, dt) => { const ty = chestY(p.owner.opponent); p.y += (ty - p.y) * Math.min(1, dt / 260); },
+      });
+    },
+  },
+  // Voile d'ombre : elle disparaît (invulnérable) et une colonne de feu jaillit sous l'adversaire
+  shadowVeil: {
+    dur: 760, cool: 2000, ai: 'mid',
+    pose: (f, t) => (t < 520 ? 'block' : 'win'),
+    start(f, m) {
+      const s = f.scene; const o = f.opponent;
+      f.invuln = 520; s.tweens.add({ targets: f.sprite, alpha: 0.15, duration: 120 });
+      m.x = o.x; // la colonne vise l'endroit où était l'adversaire : il peut esquiver en bougeant
+      const mark = s.add.ellipse(m.x, s.groundY, 140, 26, 0xa040ff, 0.5).setDepth(6).setBlendMode(Phaser.BlendModes.ADD);
+      s.tweens.add({ targets: mark, scaleX: 1.3, alpha: 0.9, duration: 420, onComplete: () => mark.destroy() });
+      s.time.delayedCall(440, () => {
+        if (f.state !== 'special') return;
+        const col = s.add.rectangle(m.x, s.groundY, 120, 520, 0xa040ff, 0.75).setOrigin(0.5, 1).setDepth(21).setBlendMode(Phaser.BlendModes.ADD);
+        s.tweens.add({ targets: col, scaleX: 0.2, alpha: 0, duration: 380, onComplete: () => col.destroy() });
+        Sfx.explosion(); s.cameras.main.shake(120, 0.008);
+        if (o.alive && Math.abs(o.x - m.x) < 95) s.applyHit(f, o, { dmg: 110, hitstun: 520, blockstun: 260, knock: 200, launch: true, heavy: true, color: 0xa040ff });
+      });
+    },
+    update(f, t) { if (t > 520) f.sprite.setAlpha(1); },
+    end(f) { f.sprite.setAlpha(1); },
+  },
+  // Super : Nuit éternelle — l'arène plonge dans le noir et Ahou aspire la vie de l'adversaire
+  eternalNight: {
+    dur: 1900, pose: (f, t) => (t < 400 ? 'special' : 'win'),
+    start(f) {
+      const s = f.scene; const o = f.opponent;
+      const veil = s.add.rectangle(0, 0, s.worldW, 720, 0x05000c, 0).setOrigin(0).setDepth(14);
+      s.tweens.add({ targets: veil, fillAlpha: 0.75, duration: 250, yoyo: true, hold: 1300, onComplete: () => veil.destroy() });
+      for (let i = 0; i < 6; i++) {
+        s.time.delayedCall(350 + i * 190, () => {
+          if (!o.alive) return;
+          const last = i === 5;
+          s.fx.laserLine(o.x, chestY(o), f.x, chestY(f), 0xa040ff, last ? 16 : 6);
+          const before = o.hp;
+          s.applyHit(f, o, { dmg: last ? 110 : 35, hitstun: 450, knock: last ? 520 : 0, unblockable: true, color: 0xa040ff, heavy: last, launch: last, keepStanding: !last, projectile: true });
+          f.hp = Math.min(MAX_HP, f.hp + Math.max(0, before - o.hp) * 0.4); // vol de vie
+          s.fx.floatText(f.x, f.y - 330, '+', '#d9a0ff', 30);
+          Sfx.zap();
+        });
+      }
+    },
+  },
+
+  // ============================ KÔRÔ, LE MASQUE SOUVERAIN (boss) ============================
+  // Cauris : trois coquillages lancés en éventail (haut, milieu, bas)
+  cowrieFan: {
+    dur: 600, cool: 1300, ai: 'far',
+    pose: (f, t) => (t < 200 ? 'heavy0' : 'heavy1'),
+    update(f, t, m) {
+      if (t < 200 || m.fired) return;
+      m.fired = true; Sfx.whoosh(true);
+      [-260, 0, 180].forEach((dy) => {
+        f.scene.spawnProjectile(f, {
+          color: 0xffe9b0, speed: 520, dmg: 40, life: 2, w: 50, h: 40,
+          draw: (scn, g) => {
+            g.add(scn.add.ellipse(0, 0, 40, 28, 0xfff4dc).setStrokeStyle(3, 0xc9a060));
+            g.add(scn.add.rectangle(0, 0, 26, 3, 0x8a6a3a));
+            g.add(scn.add.circle(0, 0, 26, 0xffd23a, 0.25).setBlendMode(Phaser.BlendModes.ADD));
+          },
+          update: (p) => { p.y = p.y0 + dy * Math.min(1, p.age * 3.5); p.gfx.setAngle(p.age * 720); },
+        });
+      });
+    },
+  },
+  // Garde des ancêtres : le masque encaisse deux coups sans broncher puis riposte
+  ancestorGuard: {
+    dur: 900, cool: 2400, ai: 'def',
+    pose: (f, t) => (t < 650 ? 'block' : 'heavy1'),
+    start(f) { f.armorHits = 2; f.scene.fx.armorGlow(f, 0xffd23a, 650); },
+    update(f, t, m) {
+      if (t > 650 && !m.hit) { m.hit = true; f.armorHits = 0; f.scene.fx.shockRing(f.x + f.facing * 80, f.y - 120, 0xffd23a); Sfx.heavyHit(); }
+      if (t > 650 && t < 780) f.meleeHit(170, { dmg: 120, hitstun: 500, blockstun: 280, knock: 560, heavy: true, launch: true, color: 0xffd23a });
+    },
+    end(f) { f.armorHits = 0; },
+  },
+  // Super : la danse des masques — trois esprits-masques balaient l'arène
+  maskDance: {
+    dur: 2000, pose: (f, t) => (Math.floor(t / 200) % 2 ? 'win' : 'special'),
+    start(f) {
+      const s = f.scene; const o = f.opponent;
+      s.fx.flash(0xffd23a, 0.3, 160);
+      [0, 1, 2].forEach((i) => {
+        s.time.delayedCall(300 + i * 450, () => {
+          if (!o.alive) return;
+          const dir = i % 2 ? -1 : 1;
+          const x0 = dir > 0 ? s.cameras.main.scrollX - 120 : s.cameras.main.scrollX + 1400;
+          const mask = s.add.container(x0, chestY(o)).setDepth(21);
+          mask.add(s.add.ellipse(0, 0, 120, 170, 0xffd23a, 0.25).setBlendMode(Phaser.BlendModes.ADD));
+          mask.add(s.add.ellipse(0, 0, 80, 120, 0x3a2414).setStrokeStyle(5, 0xffd23a));
+          mask.add(s.add.ellipse(-18, -14, 16, 8, 0xffb000)); mask.add(s.add.ellipse(18, -14, 16, 8, 0xffb000));
+          mask.add(s.add.rectangle(0, 30, 30, 6, 0xffffff));
+          Sfx.whoosh(true);
+          s.tweens.add({
+            targets: mask, x: x0 + dir * 1520, duration: 520, ease: 'Sine.easeIn',
+            onUpdate: () => {
+              // test de croisement (et pas de distance) : à faible FPS le masque avance de >150 px par image
+              const px = mask.prevX ?? x0; mask.prevX = mask.x;
+              const crossed = Math.min(px, mask.x) - 80 < o.x && o.x < Math.max(px, mask.x) + 80;
+              if (!mask.hit && o.alive && crossed) {
+                mask.hit = true; const last = i === 2;
+                s.applyHit(f, o, { dmg: last ? 120 : 60, hitstun: 500, knock: last ? 560 : 60, unblockable: true, color: 0xffd23a, heavy: last, launch: last, keepStanding: !last, projectile: true });
+              }
+            },
+            onComplete: () => mask.destroy(),
+          });
+        });
       });
     },
   },

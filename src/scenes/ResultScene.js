@@ -14,7 +14,8 @@ export class ResultScene extends Phaser.Scene {
     const c = this.cfg;
     const me = fighterById(c.p1), them = fighterById(c.p2);
     const won = c.playerWon;
-    const champion = won && c.mode === 'arcade' && c.ladderIndex >= c.ladder.length - 1;
+    const ladderMode = c.mode === 'arcade' || c.mode === 'story';
+    const champion = won && ladderMode && c.ladderIndex >= c.ladder.length - 1;
     const winner = won ? me : them;
 
     const bg = this.add.image(W / 2, H / 2, `st_${c.stage}`); bg.setScale(H / bg.height).setAlpha(0.35);
@@ -28,7 +29,7 @@ export class ResultScene extends Phaser.Scene {
     Sfx.announce(champion ? `${me.name}, champion d'Ultimate Fighters !` : won ? 'Victoire !' : 'Défaite');
 
     const line = champion
-      ? `${me.name} a battu les 7 combattants.\nTu es le champion d'Ultimate Fighters !`
+      ? (c.mode === 'story' ? `${me.name} a vaincu Kôrô, le Masque Souverain !` : `${me.name} a battu les ${c.ladder.length} combattants.\nTu es le champion d'Ultimate Fighters !`)
       : won ? `${me.name} a battu ${them.name}.` : `${them.name} a battu ${me.name}.`;
     this.add.text(860, 210, line, { fontFamily: FONT, fontSize: '28px', color: '#fff', align: 'center', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5, 0);
 
@@ -42,8 +43,10 @@ export class ResultScene extends Phaser.Scene {
     });
     const by = msgs.length ? 330 + Math.min(4, msgs.length) * 30 + 40 : 380;
     const toMenu = () => { Music.stop(this); this.scene.start('Title'); };
-    if (c.mode === 'arcade') {
-      if (champion) {
+    if (ladderMode) {
+      if (champion && c.mode === 'story') {
+        button(this, 860, by + 20, 'VOIR LA FIN', () => { Music.stop(this); this.scene.start('Story', { ...c, part: 'ending' }); });
+      } else if (champion) {
         button(this, 860, by + 20, 'REJOUER', () => { Music.stop(this); this.scene.start('Select', { mode: 'arcade', level: c.level }); });
         button(this, 860, by + 95, 'MENU', toMenu);
       } else if (won) {
