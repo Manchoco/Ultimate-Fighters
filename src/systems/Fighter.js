@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Sfx } from './Sfx.js';
+import { MOVES as SPECIALS } from './Moves.js';
 
 // Un combattant articulé : les poses (tête, bras, jambes) viennent d'une planche
 // générée par déformation « marionnette » de l'illustration. La physique (gravité,
@@ -36,6 +37,7 @@ export class Fighter {
     this.counterActive = 0; this.shieldT = 0;
     this.holdingBack = false;
     this.bounced = false; this.spin = 0; this.lastHitBand = 'high';
+    this.spinAngle = 0; this.shockT = 0; this.armorHits = 0; this.reflectT = 0; this.passThrough = false;
     this.wins = 0;
     this.opponent = null;
     this.speed = 230 + data.stats.speed * 28;
@@ -109,95 +111,60 @@ export class Fighter {
 
   startSpecial(slot) {
     const sp = this.data[slot];
-    this.cool[slot] = 1100;
-    this.special = { slot, ...sp, dur: 480 };
+    const def = SPECIALS[sp.id];
+    this.cool[slot] = def.cool || 1200;
+    this.special = { slot, ...sp, def, dur: def.dur, m: {} };
     this.moveHit = false;
     this.vx = 0;
+    if (def.invuln) this.invuln = def.invuln;
     this.setState('special');
     Sfx.special();
     this.scene.showMoveName(this, sp.name, sp.color);
     this.scene.fx.burst(this.x + this.facing * 40, this.y - 200, sp.color, 10);
-    switch (sp.type) {
-      case 'dash': this.special.dur = 420; break;
-      case 'uppercut': this.special.dur = 640; this.invuln = 220; break;
-      case 'heavy': this.special.dur = 740; break;
-      case 'spin': this.special.dur = 640; break;
-      case 'grab': this.special.dur = 560; break;
-      case 'counter': this.special.dur = 700; this.counterActive = 600; break;
-      case 'shield': this.special.dur = 380; this.shieldT = 1600; this.scene.fx.shield(this); break;
-      case 'teleport': {
-        this.special.dur = 560;
-        this.scene.fx.burst(this.x, this.y - 150, sp.color, 18);
-        this.sprite.setAlpha(0.15);
-        this.scene.time.delayedCall(180, () => {
-          this.sprite.setAlpha(1);
-          if (this.state !== 'special') return;
-          const o = this.opponent;
-          this.x = Phaser.Math.Clamp(o.x - o.facing * 140, this.scene.leftBound + 60, this.scene.rightBound - 60);
-          this.facing = this.x < o.x ? 1 : -1;
-          this.scene.fx.burst(this.x, this.y - 150, sp.color, 18);
-          Sfx.zap();
-        });
-        break;
-      }
-      case 'rain':
-        this.special.dur = 520;
-        this.scene.time.delayedCall(250, () => { if (this.alive) this.scene.spawnRain(this, sp.color, 5, 55); });
-        break;
-      case 'projectile':
-      default:
-        this.special.dur = 480;
-        this.scene.time.delayedCall(170, () => {
-          if (this.state !== 'special') return;
-          this.scene.spawnProjectile(this, sp);
-          if (sp.arrow) Sfx.arrow(); else Sfx.zap();
-        });
+    if (def.start) def.start(this, this.special.m);
+  }
+
+  // Coup au corps à corps pendant un spécial (une seule touche tant que moveHit est vrai)
+  meleeHit(reach, hit, band = 'mid') {
+    if (this.moveHit) return false;
+    const box = this.attackBox(reach, band);
+    if (Phaser.Geom.Intersects.RectangleToRectangle(box, this.opponent.hurtbox())) {
+      this.moveHit = true;
+      const color = this.special ? this.special.color : this.data.sup.color;
+      this.scene.applyHit(this, this.opponent, { color, ...hit, dmg: hit.dmg * this.powerMul });
+      return true;
     }
+    return false;
+  }
+
+  cancelSpecial() {
+    if (this.special && this.special.def.end) this.special.def.end(this);
+    if (this.superMove && this.superMove.def.end) this.superMove.def.end(this);
+    this.special = null; this.superMove = null; this.spinAngle = 0; this.armorHits = 0; this.passThrough = false;
   }
 
   startSuper() {
     this.superM = 0;
     this.setState('super');
     this.superPose = 'special';
+    this.superMove = null;
     this.invuln = 99999;
     this.vx = 0;
     this.scene.superCinematic(this, () => {
-      const sup = this.data.sup;
-      const o = this.opponent;
-      if (!this.alive || !o.alive) { this.endSuper(); return; }
-      if (sup.type === 'beam') {
-        this.scene.spawnBeam(this, sup.color);
-        this.scene.time.delayedCall(900, () => this.endSuper());
-      } else if (sup.type === 'storm') {
-        this.superPose = 'win';
-        this.scene.spawnRain(this, sup.color, 9, 38, true);
-        this.scene.time.delayedCall(1300, () => this.endSuper());
-      } else {
-        // rush : fonce sur l'adversaire puis rafale de coups
-        const target = Phaser.Math.Clamp(o.x - this.facing * 120, this.scene.leftBound + 60, this.scene.rightBound - 60);
-        this.superPose = 'punch0';
-        this.scene.tweens.add({
-          targets: this, x: target, duration: 220, ease: 'Quad.easeIn',
-          onUpdate: () => this.scene.fx.ghost(this, sup.color),
-          onComplete: () => {
-            let n = 0;
-            this.scene.time.addEvent({
-              delay: 110, repeat: 6, callback: () => {
-                n++;
-                this.lungePulse = 1;
-                const last = n === 7;
-                this.superPose = last ? 'upper' : ['punch1', 'kick1', 'punch1', 'heavy1'][n % 4];
-                this.scene.applyHit(this, o, { dmg: last ? 90 : 32, hitstun: 450, knock: last ? 560 : 30, heavy: last, unblockable: true, color: sup.color, launch: last, keepStanding: !last });
-              },
-            });
-            this.scene.time.delayedCall(950, () => this.endSuper());
-          },
-        });
-      }
+      const def = SPECIALS[this.data.sup.id];
+      if (!this.alive || !this.opponent.alive || this.state !== 'super') { this.endSuper(); return; }
+      this.superMove = { def, m: {}, t: 0 };
+      this.moveHit = false;
+      def.start(this, this.superMove.m);
+      // la fin est gérée dans update() sur le temps de jeu (cohérent même si l'appareil rame)
     });
   }
 
-  endSuper() { if (this.state === 'super') { this.invuln = 0; this.setState('idle'); } }
+  endSuper() {
+    if (this.superMove && this.superMove.def.end) this.superMove.def.end(this);
+    this.superMove = null; this.spinAngle = 0; this.passThrough = false;
+    if (this.state === 'super') { this.invuln = 0; this.setState(this.grounded ? 'idle' : 'jump'); }
+  }
 
   // ---------- Réception des coups ----------
   receive(hit, attacker) {
@@ -210,10 +177,16 @@ export class Fighter {
       return 'countered';
     }
     let dmg = hit.dmg * this.defMul;
+    // blindage (Crochet Bulldozer) : encaisse sans broncher
+    if (this.armorHits > 0 && !hit.unblockable) {
+      this.armorHits--; this.hp = Math.max(1, this.hp - dmg * 0.5); this.flash = 60;
+      return 'armored';
+    }
     if (this.shieldT > 0 && !hit.unblockable) dmg *= 0.2;
     const canBlock = !hit.unblockable && this.holdingBack && !this.busy && this.grounded;
     const lowOk = hit.band !== 'low' || this.crouching;
-    const dir = attacker.x <= this.x ? 1 : -1; // sens de la poussée
+    let dir = attacker.x <= this.x ? 1 : -1; // sens de la poussée
+    if (hit.throwOver) dir = -dir; // projeté par-dessus l'attaquant
     if (canBlock && lowOk) {
       this.hp = Math.max(1, this.hp - dmg * 0.12);
       this.superM = Math.min(MAX_SUPER, this.superM + 4);
@@ -226,7 +199,8 @@ export class Fighter {
     this.flash = 60;
     this.lastHitBand = hit.band === 'high' ? 'high' : 'mid';
     this.hitT = hit.hitstun || 280;
-    this.move = null; this.special = null; this.counterActive = 0;
+    this.cancelSpecial(); this.move = null; this.counterActive = 0;
+    if (hit.shock) this.shockT = hit.shock;
     if (this.state === 'super') this.invuln = 0;
     const knock = (hit.knock || 150) / this.mass;
     const airborne = !this.grounded || this.state === 'airhit';
@@ -238,7 +212,8 @@ export class Fighter {
     } else if ((hit.launch || hit.sweep || airborne) && !hit.keepStanding) {
       // projection / jonglage
       this.vx = dir * knock * (hit.sweep ? 0.5 : 1);
-      this.vy = hit.sweep ? -260 : -(hit.launch ? 820 : 520) / Math.sqrt(this.mass);
+      this.vy = hit.sweep ? -260 : -(hit.throwOver ? 1050 : hit.launch ? 820 : 520) / Math.sqrt(this.mass);
+      if (hit.throwOver) this.vx = dir * 520;
       this.spin = dir * (hit.sweep ? 120 : 160 + Math.random() * 120); this.bounced = false;
       this.setState('airhit');
     } else {
@@ -257,6 +232,14 @@ export class Fighter {
     if (this.flash > 0) this.flash -= dt;
     if (this.counterActive > 0) this.counterActive -= dt;
     if (this.shieldT > 0) this.shieldT -= dt;
+    if (this.reflectT > 0) this.reflectT -= dt;
+    if (this.shockT > 0) this.shockT -= dt;
+    if (this.state === 'super' && this.superMove) {
+      const sm = this.superMove;
+      sm.t += dt;
+      if (sm.def.update) sm.def.update(this, sm.t, sm.m);
+      if (this.superMove === sm && sm.t >= sm.def.dur && this.grounded) this.endSuper();
+    }
     const opp = this.opponent;
 
     // Toujours face à l'adversaire quand on est libre au sol
@@ -355,46 +338,12 @@ export class Fighter {
   updateSpecial() {
     const sp = this.special;
     if (!sp) { this.setState('idle'); return; }
-    const t = this.stateT; const f = this.facing;
-    const tryHit = (reach, hit, band = 'mid') => {
-      if (this.moveHit) return;
-      const box = this.attackBox(reach, band);
-      if (Phaser.Geom.Intersects.RectangleToRectangle(box, this.opponent.hurtbox())) {
-        this.moveHit = true;
-        this.scene.applyHit(this, this.opponent, { ...hit, dmg: hit.dmg * this.powerMul, color: sp.color });
-      }
-    };
-    switch (sp.type) {
-      case 'dash':
-        if (t > 80 && t < 330) { this.vx = f * 1150; this.scene.fx.ghost(this, sp.color); tryHit(110, { dmg: 85, hitstun: 380, blockstun: 220, knock: 380 }); } else this.vx *= 0.7;
-        break;
-      case 'uppercut':
-        if (t > 60 && t < 140 && this.grounded) { this.vy = -1050; this.vx = f * 220; }
-        if (t > 60 && t < 380) { this.scene.fx.ghost(this, sp.color); tryHit(120, { dmg: 105, hitstun: 520, blockstun: 240, knock: 260, launch: true, heavy: true }, 'high'); }
-        if (t > 300 && this.grounded) this.vx = 0;
-        break;
-      case 'heavy':
-        if (t > 330 && t < 430) tryHit(190, { dmg: 140, hitstun: 560, blockstun: 320, knock: 520, heavy: true, launch: true });
-        if (t > 330 && t < 350) { this.scene.cameras.main.shake(120, 0.008); this.scene.fx.dust(this.x + f * 160, this.scene.groundY, 0.8); }
-        break;
-      case 'spin':
-        if (t > 60 && t < 560) {
-          this.vx = f * 620; this.scene.fx.ghost(this, sp.color);
-          if (!this.moveHit) {
-            tryHit(90, { dmg: 40, hitstun: 300, blockstun: 160, knock: 140, keepStanding: true });
-            if (this.moveHit) this.lastSpinHit = t;
-          } else if (t - this.lastSpinHit > 150) this.moveHit = false; // touches multiples
-        } else this.vx *= 0.7;
-        break;
-      case 'grab':
-        if (t > 120 && t < 260) tryHit(95, { dmg: 130, hitstun: 600, knock: 600, unblockable: true, heavy: true, launch: true });
-        break;
-      case 'teleport':
-        if (t > 260 && t < 420) tryHit(130, { dmg: 80, hitstun: 400, blockstun: 200, knock: 320 });
-        break;
-      default: break;
+    const t = this.stateT;
+    if (sp.def.update) sp.def.update(this, t, sp.m);
+    if (this.special === sp && t >= sp.dur && this.grounded) {
+      if (sp.def.end) sp.def.end(this);
+      this.vx = 0; this.special = null; this.spinAngle = 0; this.setState('idle');
     }
-    if (t >= sp.dur && this.grounded) { this.vx = 0; this.special = null; this.setState('idle'); }
   }
 
   attackBox(reach, band = 'mid') {
@@ -419,7 +368,7 @@ export class Fighter {
       case 'airhit': case 'down': case 'ko': return 'ko';
       case 'getup': return tt < 200 ? 'crouch' : 'idle0';
       case 'win': return 'win';
-      case 'super': return this.superPose || 'special';
+      case 'super': return this.superMove ? this.superMove.def.pose(this, this.superMove.t) : 'special';
       case 'attack': {
         const m = this.move; if (!m) return 'idle0';
         if (m.name === 'air') return tt < m.startup ? 'jump' : 'airkick';
@@ -427,20 +376,7 @@ export class Fighter {
         if (tt < m.startup + m.active + m.recovery * 0.5) return m.poses[1];
         return m.name === 'low' ? 'crouch' : m.poses[0];
       }
-      case 'special': {
-        const sp = this.special; if (!sp) return 'idle0';
-        switch (sp.type) {
-          case 'uppercut': return tt < 60 ? 'crouch' : 'upper';
-          case 'heavy': return tt < 330 ? 'heavy0' : 'heavy1';
-          case 'spin': return 'kick1';
-          case 'counter': return 'block';
-          case 'grab': return tt < 120 ? 'punch0' : 'special';
-          case 'dash': return tt < 80 ? 'punch0' : 'punch1';
-          case 'teleport': return tt < 260 ? 'special' : 'kick1';
-          case 'rain': return 'win';
-          default: return tt < 170 ? 'punch0' : 'special';
-        }
-      }
+      case 'special': return this.special ? this.special.def.pose(this, tt) : 'idle0';
       default: return 'idle0';
     }
   }
@@ -449,7 +385,7 @@ export class Fighter {
     const sp = this.sprite; const f = this.facing;
     const fi = this.frameIndex[this.pose()] ?? 0;
     if (sp.frame.name !== fi) sp.setFrame(fi);
-    let ox = 0, oy = 0, ang = 0, sx = 1, sy = 1, flipF = f;
+    let ox = 0, oy = 0, ang = 0, sx = 1, sy = 1; const flipF = f;
     const tt = this.stateT;
     switch (this.state) {
       case 'walk': oy = -Math.abs(Math.sin(this.t * 14)) * 4; break;
@@ -459,7 +395,6 @@ export class Fighter {
         ox = f * m.lunge * k;
         break;
       }
-      case 'special': if (this.special && this.special.type === 'spin') { oy = -30; flipF = Math.floor(tt / 80) % 2 ? -f : f; } break;
       case 'super': ox = (this.lungePulse || 0) * f * 26; break;
       case 'hit': ox = -f * 4 * Math.max(0, 1 - tt / 150); break;
       // corps projeté : il tourne en l'air puis s'allonge au sol (pivot aux pieds)
@@ -470,6 +405,12 @@ export class Fighter {
       default: break;
     }
     if (this.state !== 'airhit' && this.state !== 'ko') this.rot = 0;
+    if (this.spinAngle) {
+      // rotation autour du centre du corps (et non des pieds)
+      const h = DISPLAY_H * 0.45; const a = Phaser.Math.DegToRad(this.spinAngle);
+      ang = this.spinAngle; ox += -h * Math.sin(a); oy += -h + h * Math.cos(a);
+    }
+    if (this.shockT > 0) { ox += Phaser.Math.Between(-5, 5); oy += Phaser.Math.Between(-3, 3); }
     if (this.lungePulse) this.lungePulse = Math.max(0, this.lungePulse - 0.15);
     if (this.landSquash) { sy = 1 - 0.08 * this.landSquash; sx = 1 + 0.05 * this.landSquash; this.landSquash = Math.max(0, this.landSquash - 0.12); }
     // respiration très légère pour ne jamais paraître figé
@@ -480,6 +421,8 @@ export class Fighter {
     sp.setScale(this.baseScale * sx, this.baseScale * sy);
     sp.setAngle(ang);
     if (this.flash > 0) sp.setTintFill(0xffffff);
+    else if (this.shockT > 0) { if (Math.floor(this.shockT / 50) % 2) sp.setTintFill(0x9fdcff); else sp.setTint(0x6a7cff); }
+    else if (this.armorHits > 0) sp.setTint(0xffc890);
     else if (this.state === 'block') sp.setTint(0xc4dcff);
     else if (this.state === 'hit' || this.state === 'airhit') sp.setTint(0xffb0b0);
     else if (this.counterActive > 0) sp.setTint(0xfff1b0);

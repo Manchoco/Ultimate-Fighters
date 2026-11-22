@@ -8,7 +8,7 @@ import { FONT, FONT_TITLE } from './ui.js';
 export class VersusScene extends Phaser.Scene {
   constructor() { super('Versus'); }
 
-  init(data) { this.cfg = data; }
+  init(data) { this.cfg = data; this.done = false; }
 
   create() {
     const W = this.scale.width, H = this.scale.height;
@@ -45,7 +45,8 @@ export class VersusScene extends Phaser.Scene {
       }
     }
     const loading = this.add.text(W / 2, H - 100, '', { fontFamily: FONT, fontSize: '20px', color: '#ffffffaa' }).setOrigin(0.5);
-    this.load.on('progress', (v) => loading.setText(`Préparation du combat… ${Math.round(v * 100)} %`));
+    this.load.off('progress'); // évite d'empiler les écouteurs d'un combat à l'autre
+    this.load.on('progress', (v) => loading.active && loading.setText(`Préparation du combat… ${Math.round(v * 100)} %`));
     this.load.once('complete', () => { loaded = true; loading.setText(''); if (wantGo) go(); });
     this.load.start();
     if (this.load.totalToLoad === 0) loaded = true;

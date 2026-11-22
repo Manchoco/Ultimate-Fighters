@@ -4,10 +4,6 @@ import { STAGES } from '../data/stages.js';
 import { Sfx, Music } from '../systems/Sfx.js';
 import { FONT, button, fullscreenButton } from './ui.js';
 
-const TYPE_LABEL = {
-  projectile: 'Projectile', dash: 'Charge', counter: 'Contre', teleport: 'Téléportation', rain: 'Pluie', grab: 'Projection',
-  shield: 'Bouclier', uppercut: 'Coup montant', heavy: 'Coup lourd', spin: 'Tourbillon',
-};
 
 export class SelectScene extends Phaser.Scene {
   constructor() { super('Select'); }
@@ -52,7 +48,7 @@ export class SelectScene extends Phaser.Scene {
       this.add.text(702, y, lab, { fontFamily: FONT, fontSize: '22px', color: '#ddd' });
       return [0, 1, 2, 3, 4].map((k) => this.add.rectangle(850 + k * 46, y + 13, 40, 18, 0x333344).setStrokeStyle(1, 0x000000));
     });
-    this.movesTxt = this.add.text(702, 330, '', { fontFamily: FONT, fontSize: '20px', color: '#fff', lineSpacing: 6 });
+    this.movesTxt = this.add.text(702, 330, '', { fontFamily: FONT, fontSize: '17px', color: '#fff', lineSpacing: 8, wordWrap: { width: 560 } });
     this.vsImg = null;
 
     this.okBtn = button(this, 1170, 690, 'VALIDER', () => this.confirm(), { size: 30, bg: '#b8860bcc' });
@@ -99,9 +95,9 @@ export class SelectScene extends Phaser.Scene {
     const st = [f.stats.speed, f.stats.power, f.stats.defense];
     this.statBars.forEach((bars, i) => bars.forEach((b, k) => b.setFillStyle(k < st[i] ? f.color : 0x333344)));
     this.movesTxt.setText([
-      `Spécial 1 : ${f.s1.name}  (${TYPE_LABEL[f.s1.type]})`,
-      `Spécial 2 : ${f.s2.name}  (${TYPE_LABEL[f.s2.type]})`,
-      `Super : ${f.sup.name}`,
+      `S1  ${f.s1.name} — ${f.s1.desc}`,
+      `S2  ${f.s2.name} — ${f.s2.desc}`,
+      `SUPER  ${f.sup.name} — ${f.sup.desc}`,
     ].join('\n'));
   }
 

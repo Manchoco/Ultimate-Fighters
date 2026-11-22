@@ -134,6 +134,11 @@ export class FightScene extends Phaser.Scene {
     if (this.phase !== 'fight') return 'none'; // aucun coup ne compte hors du combat (intro, fin de round)
     const res = def.receive(hit, att);
     if (res === 'none' || res === 'countered') return res;
+    if (res === 'armored') {
+      this.fx.spark(def.x, def.y - BODY_H * 0.6, 0xffc890, true); Sfx.block();
+      this.fx.floatText(def.x, def.y - 380, 'BLINDÉ !', '#ffc890', 30);
+      return res;
+    }
     const cx = (def.x + att.x) / 2 + att.facing * 20;
     const cy = def.y - BODY_H * (hit.band === 'low' ? 0.2 : 0.62);
     if (res === 'blocked') {
@@ -165,48 +170,63 @@ export class FightScene extends Phaser.Scene {
   }
 
   // ---------- Projectiles et attaques spéciales ----------
-  spawnProjectile(owner, sp) {
-    const y = owner.y - BODY_H * 0.62;
+  // Projectile générique : chaque coup fournit son dessin et ses propriétés
+  // opts : color, speed, dmg, life (s), w, h, y, draw(scene, container, facing), update(p, dt),
+  //        explode, pierceProjectiles, unblockable, heavy, launch, band, groundCrack
+  spawnProjectile(owner, opts) {
+    const y = opts.y ?? owner.y - BODY_H * 0.62;
     const x = owner.x + owner.facing * 90;
     const g = this.add.container(x, y).setDepth(20);
-    if (sp.arrow) {
-      const glow = this.add.ellipse(0, 0, 130, 26, sp.color, 0.35).setBlendMode(Phaser.BlendModes.ADD);
-      const shaft = this.add.rectangle(0, 0, 90, 5, sp.color).setBlendMode(Phaser.BlendModes.ADD);
-      const head = this.add.triangle(48 * owner.facing, 0, 0, -10, 0, 10, 22 * owner.facing, 0, 0xffffff);
-      g.add([glow, shaft, head]);
-    } else {
-      const glow = this.add.circle(0, 0, 46, sp.color, 0.3).setBlendMode(Phaser.BlendModes.ADD);
-      const core = this.add.circle(0, 0, 24, sp.color, 0.9).setBlendMode(Phaser.BlendModes.ADD);
-      const white = this.add.circle(0, 0, 11, 0xffffff, 1);
-      g.add([glow, core, white]);
-      this.tweens.add({ targets: glow, scale: { from: 0.8, to: 1.25 }, yoyo: true, repeat: -1, duration: 120 });
-    }
-    this.projectiles.push({ owner, x, y, vx: owner.facing * (sp.arrow ? 1250 : 860), gfx: g, dmg: sp.short ? 85 : 70, life: sp.short ? 0.45 : 2.2, color: sp.color, alive: true, trailT: 0 });
+    opts.draw(this, g, owner.facing);
+    this.projectiles.push({
+      ...opts, owner, x, y, y0: y, vx: owner.facing * opts.speed, gfx: g, alive: true, trailT: 0, age: 0,
+      w: opts.w || 60, h: opts.h || 60,
+    });
   }
 
-  spawnRain(owner, color, count, dmg, isSuper = false) {
+  spawnRain(owner, color, count, dmg, opts = {}) {
     const target = owner.opponent;
+    const arrow = opts.style === 'arrow';
+    if (arrow) {
+      // les flèches partent d'abord vers le ciel
+      for (let i = 0; i < count; i++) {
+        const a = this.add.rectangle(owner.x + owner.facing * 30, owner.y - 300, 5, 60, color).setDepth(22).setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({ targets: a, y: -80, x: a.x + owner.facing * (40 + i * 25), duration: 300, delay: i * 50, onComplete: () => a.destroy() });
+      }
+    }
     for (let i = 0; i < count; i++) {
-      this.time.delayedCall(i * (isSuper ? 120 : 140), () => {
+      this.time.delayedCall((arrow ? 380 : 0) + i * 140, () => {
         if (this.phase !== 'fight') return;
         const x = target.x + Phaser.Math.Between(-90, 90);
-        const bolt = this.add.rectangle(x, -40, isSuper ? 18 : 8, isSuper ? 160 : 90, color, 1).setDepth(22).setBlendMode(Phaser.BlendModes.ADD);
-        const glow = this.add.rectangle(x, -40, isSuper ? 60 : 26, isSuper ? 200 : 110, color, 0.3).setDepth(21).setBlendMode(Phaser.BlendModes.ADD);
+        const g = this.add.container(x, -40).setDepth(22);
+        if (arrow) {
+          g.add(this.add.rectangle(0, 0, 6, 80, 0xc9ffbf));
+          g.add(this.add.triangle(0, 46, -9, 0, 9, 0, 0, 20, 0xffffff));
+          g.add(this.add.ellipse(0, 0, 26, 110, color, 0.35).setBlendMode(Phaser.BlendModes.ADD));
+        } else {
+          g.add(this.add.rectangle(0, 0, 26, 110, color, 0.3).setBlendMode(Phaser.BlendModes.ADD));
+          g.add(this.add.rectangle(0, 0, 8, 90, color, 1).setBlendMode(Phaser.BlendModes.ADD));
+        }
         this.tweens.add({
-          targets: [bolt, glow], y: this.groundY - 40, duration: 260, ease: 'Quad.easeIn',
+          targets: g, y: this.groundY - 40, duration: 260, ease: 'Quad.easeIn',
           onComplete: () => {
-            bolt.destroy(); glow.destroy();
-            this.fx.spark(x, this.groundY - 30, color, isSuper);
-            if (isSuper) { Sfx.zap(); this.cameras.main.shake(80, 0.006); } else Sfx.arrow();
+            g.destroy();
+            this.fx.spark(x, this.groundY - 30, color, false);
+            this.fx.dust(x, this.groundY, 0.3);
+            Sfx.arrow();
             const r = new Phaser.Geom.Rectangle(x - 45, 0, 90, 720);
             if (target.alive && Phaser.Geom.Intersects.RectangleToRectangle(r, target.hurtbox())) {
-              const last = i === count - 1;
-              this.applyHit(owner, target, { dmg: dmg * owner.powerMul, hitstun: 380, blockstun: 160, knock: 60, color, unblockable: isSuper, projectile: true, heavy: isSuper && last, launch: isSuper && last });
+              this.applyHit(owner, target, { dmg: dmg * owner.powerMul, hitstun: 380, blockstun: 160, knock: 60, color, projectile: true });
             }
           },
         });
       });
     }
+  }
+
+  slowMotion(scale, ms) {
+    this.slowmo = scale;
+    this.time.delayedCall(ms * scale, () => { if (this.phase === 'fight' || this.phase === 'end') this.slowmo = 1; });
   }
 
   spawnBeam(owner, color) {
@@ -290,7 +310,7 @@ export class FightScene extends Phaser.Scene {
     if (dt > 0) {
       const a = this.p1, b = this.p2;
       const overlapX = 100 - Math.abs(a.x - b.x);
-      if (overlapX > 0 && Math.abs(a.y - b.y) < 200 && a.alive && b.alive && !a.lying && !b.lying) {
+      if (overlapX > 0 && Math.abs(a.y - b.y) < 200 && a.alive && b.alive && !a.lying && !b.lying && !a.passThrough && !b.passThrough) {
         const dir = a.x < b.x ? -1 : a.x > b.x ? 1 : (a.facing > 0 ? -1 : 1);
         a.x += dir * overlapX / 2; b.x -= dir * overlapX / 2;
         a.x = Phaser.Math.Clamp(a.x, this.leftBound + 55, this.rightBound - 55);
@@ -312,28 +332,43 @@ export class FightScene extends Phaser.Scene {
     const s = dt / 1000;
     for (const p of this.projectiles) {
       if (!p.alive) continue;
+      p.age += s;
       p.x += p.vx * s; p.life -= s;
+      if (p.update) p.update(p, dt);
       p.gfx.setPosition(p.x, p.y);
       p.trailT += dt;
       if (p.trailT > 30) {
         p.trailT = 0;
-        const tr = this.add.circle(p.x, p.y, 14, p.color, 0.5).setDepth(19).setBlendMode(Phaser.BlendModes.ADD);
-        this.tweens.add({ targets: tr, alpha: 0, scale: 0.3, duration: 220, onComplete: () => tr.destroy() });
-      }
-      const target = p.owner.opponent;
-      const box = new Phaser.Geom.Rectangle(p.x - 30, p.y - 30, 60, 60);
-      if (target.alive && target.invuln <= 0 && Phaser.Geom.Intersects.RectangleToRectangle(box, target.hurtbox())) {
-        this.applyHit(p.owner, target, { dmg: p.dmg * p.owner.powerMul, hitstun: 360, blockstun: 220, knock: 220, color: p.color, projectile: true });
-        p.alive = false;
-      }
-      // deux projectiles qui se croisent s'annulent
-      for (const q of this.projectiles) {
-        if (p.alive && q !== p && q.alive && q.owner !== p.owner && Math.abs(q.x - p.x) < 50 && Math.abs(q.y - p.y) < 80) {
-          q.alive = false; p.alive = false; this.fx.spark((p.x + q.x) / 2, p.y, 0xffffff, true); Sfx.explosion();
-          this.fx.burst(q.x, q.y, q.color, 6); q.gfx.destroy(); q.dead = true;
+        if (p.groundCrack) { this.fx.crack(p.x, this.groundY, p.color); this.fx.dust(p.x, this.groundY, 0.25); }
+        else {
+          const tr = this.add.circle(p.x, p.y, Math.min(p.h, 60) * 0.3, p.color, 0.45).setDepth(19).setBlendMode(Phaser.BlendModes.ADD);
+          this.tweens.add({ targets: tr, alpha: 0, scale: 0.3, duration: 220, onComplete: () => tr.destroy() });
         }
       }
-      if (p.life <= 0 || p.x < this.leftBound - 100 || p.x > this.rightBound + 100) p.alive = false;
+      const target = p.owner.opponent;
+      const box = new Phaser.Geom.Rectangle(p.x - p.w / 2, p.y - p.h / 2, p.w, p.h);
+      if (target.alive && target.invuln <= 0 && Phaser.Geom.Intersects.RectangleToRectangle(box, target.hurtbox())) {
+        if (target.reflectT > 0 && !p.unblockable) {
+          // Bouclier d'Aya : le projectile repart vers son lanceur
+          p.vx = -p.vx; p.owner = target; p.life = Math.max(p.life, 1.2);
+          p.gfx.setScale(-p.gfx.scaleX, 1);
+          this.fx.spark(p.x, p.y, 0x4fd2ff, true); Sfx.block();
+          this.fx.floatText(target.x, target.y - 380, 'RENVOYÉ !', '#9fe8ff', 30);
+          continue;
+        }
+        this.applyHit(p.owner, target, { dmg: p.dmg * p.owner.powerMul, hitstun: 380, blockstun: 220, knock: p.heavy ? 380 : 220, color: p.color, projectile: true, unblockable: p.unblockable, heavy: p.heavy, launch: p.launch, band: p.band });
+        if (p.explode) { this.fx.spark(p.x, p.y, p.color, true); this.fx.shockRing(p.x, p.y, p.color); Sfx.explosion(); this.cameras.main.shake(150, 0.008); }
+        p.alive = false;
+      }
+      // deux projectiles qui se croisent : ils s'annulent, sauf les perçants qui détruisent l'autre
+      for (const q of this.projectiles) {
+        if (p.alive && q !== p && q.alive && q.owner !== p.owner && Math.abs(q.x - p.x) < (p.w + q.w) / 2 && Math.abs(q.y - p.y) < (p.h + q.h) / 2) {
+          this.fx.spark((p.x + q.x) / 2, p.y, 0xffffff, true); Sfx.explosion();
+          if (!p.pierceProjectiles || q.pierceProjectiles) { p.alive = false; }
+          if (!q.pierceProjectiles || p.pierceProjectiles) { q.alive = false; q.dead = true; this.fx.burst(q.x, q.y, q.color, 6); q.gfx.destroy(); }
+        }
+      }
+      if (p.life <= 0 || p.x < this.leftBound - 200 || p.x > this.rightBound + 200) p.alive = false;
       if (!p.alive && !p.dead) { p.dead = true; this.fx.burst(p.x, p.y, p.color, 6); p.gfx.destroy(); }
     }
     this.projectiles = this.projectiles.filter((p) => p.alive);
