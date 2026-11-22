@@ -3,6 +3,7 @@ import { fighterById } from '../data/fighters.js';
 import { STAGES } from '../data/stages.js';
 import { Sfx } from '../systems/Sfx.js';
 import { FONT, FONT_TITLE } from './ui.js';
+import { applyCostume } from '../systems/Progress.js';
 
 // Écran « face à face » avant chaque combat.
 export class VersusScene extends Phaser.Scene {
@@ -19,6 +20,7 @@ export class VersusScene extends Phaser.Scene {
     this.add.rectangle(W / 2, 0, W / 2, H, b.color, 0.35).setOrigin(0);
 
     const left = this.add.image(-300, H, `f_${a.id}`).setOrigin(0.5, 1); left.setScale(620 / left.height);
+    applyCostume(left, this.cfg.costume);
     const right = this.add.image(W + 300, H, `f_${b.id}`).setOrigin(0.5, 1).setFlipX(true); right.setScale(620 / right.height);
     this.tweens.add({ targets: left, x: 300, duration: 450, ease: 'Back.easeOut' });
     this.tweens.add({ targets: right, x: W - 300, duration: 450, ease: 'Back.easeOut' });

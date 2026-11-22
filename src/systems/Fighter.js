@@ -16,9 +16,9 @@ export const MAX_SUPER = 100;
 
 // Coups normaux : temps en ms, portée en px devant le corps.
 const MOVES = {
-  punch: { startup: 70, active: 90, recovery: 160, dmg: 45, reach: 125, lunge: 14, hitstun: 260, blockstun: 160, knock: 170, band: 'high', poses: ['punch0', 'punch1'] },
-  kick: { startup: 120, active: 110, recovery: 240, dmg: 65, reach: 165, lunge: 18, hitstun: 320, blockstun: 200, knock: 260, band: 'mid', heavy: true, poses: ['kick0', 'kick1'] },
-  low: { startup: 90, active: 100, recovery: 230, dmg: 50, reach: 160, lunge: 14, hitstun: 300, blockstun: 180, knock: 170, band: 'low', poses: ['crouch', 'low'], sweep: true },
+  punch: { startup: 70, active: 90, recovery: 160, dmg: 45, reach: 135, lunge: 14, hitstun: 330, blockstun: 160, knock: 90, band: 'high', poses: ['punch0', 'punch1'] },
+  kick: { startup: 110, active: 110, recovery: 240, dmg: 65, reach: 175, lunge: 18, hitstun: 380, blockstun: 200, knock: 170, band: 'mid', heavy: true, poses: ['kick0', 'kick1'] },
+  low: { startup: 90, active: 100, recovery: 230, dmg: 50, reach: 165, lunge: 14, hitstun: 340, blockstun: 180, knock: 110, band: 'low', poses: ['crouch', 'low'], sweep: true },
   air: { startup: 60, active: 280, recovery: 80, dmg: 60, reach: 145, lunge: 8, hitstun: 300, blockstun: 180, knock: 200, band: 'high', poses: ['jump', 'airkick'] },
 };
 
@@ -69,20 +69,50 @@ export class Fighter {
   setState(s) { this.state = s; this.stateT = 0; }
 
   // ---------- Actions déclenchées par le joueur ou l'IA ----------
+  // Lit l'action demandée (avec une mémoire de 170 ms : un appui un peu trop tôt n'est pas perdu)
+  readAction(ctrl) {
+    const now = this.scene.time.now;
+    let a = null;
+    if (ctrl.sup) a = 'sup'; else if (ctrl.s1) a = 's1'; else if (ctrl.s2) a = 's2';
+    else if (ctrl.punch || ctrl.kick) a = !this.grounded ? 'air' : ctrl.down ? 'low' : ctrl.punch ? 'punch' : 'kick';
+    if (a) this.buffer = { a, t: now };
+    else if (this.buffer && now - this.buffer.t < 170) a = this.buffer.a;
+    return a;
+  }
+
+  // Annulations : un coup qui a touché (ou été paré) peut s'enchaîner sur un coup plus fort
+  canCancelInto(a) {
+    const m = this.move;
+    if (this.state !== 'attack' || !m || !this.moveHit || m.name === 'air') return false;
+    const t = this.stateT;
+    if (t < m.startup || t > m.startup + m.active + m.recovery * 0.75) return false;
+    const rank = { punch: 1, low: 2, kick: 3 };
+    if (a === 's1' || a === 's2' || a === 'sup') return true;
+    return (rank[a] || 0) > (rank[m.name] || 0);
+  }
+
+  doAction(a) {
+    this.buffer = null;
+    if (a === 'sup') { if (this.superM >= MAX_SUPER && this.grounded) { this.startSuper(); return true; } return false; }
+    if (a === 's1' || a === 's2') { if (this.cool[a] <= 0 && this.grounded) { this.startSpecial(a); return true; } return false; }
+    if (a === 'air') { if (!this.grounded) { this.startMove('air'); return true; } return false; }
+    if (a) { this.startMove(a); return true; }
+    return false;
+  }
+
   input(ctrl) {
     if (!this.alive || this.state === 'block') return;
     this.holdingBack = (this.facing > 0 && ctrl.left) || (this.facing < 0 && ctrl.right);
-    if (this.busy) return;
-
-    if (ctrl.sup && this.superM >= MAX_SUPER && this.grounded) { this.startSuper(); return; }
-    if (ctrl.s1 && this.cool.s1 <= 0 && this.grounded) { this.startSpecial('s1'); return; }
-    if (ctrl.s2 && this.cool.s2 <= 0 && this.grounded) { this.startSpecial('s2'); return; }
-    if (ctrl.punch || ctrl.kick) {
-      if (!this.grounded) { this.startMove('air'); return; }
-      if (ctrl.down) { this.startMove('low'); return; }
-      this.startMove(ctrl.punch ? 'punch' : 'kick');
-      return;
+    const a = this.readAction(ctrl);
+    // un spécial qui a touché peut s'annuler en super (fin de combo spectaculaire)
+    if (a === 'sup' && this.state === 'special' && this.moveHit && this.superM >= MAX_SUPER && this.grounded) {
+      this.cancelSpecial(); this.buffer = null; this.startSuper(); this.scene.onCancel(this); return;
     }
+    if (a && this.canCancelInto(a)) {
+      if (this.doAction(a)) { this.scene.onCancel(this); return; }
+    }
+    if (this.busy) return;
+    if (a && this.doAction(a)) return;
     if (!this.grounded) return; // pas de contrôle en l'air
 
     if (ctrl.up) {
@@ -122,6 +152,7 @@ export class Fighter {
     this.scene.showMoveName(this, sp.name, sp.color);
     this.scene.fx.burst(this.x + this.facing * 40, this.y - 200, sp.color, 10);
     if (def.start) def.start(this, this.special.m);
+    if (this === this.scene.p1) this.scene.stats.p1.specials++;
   }
 
   // Coup au corps à corps pendant un spécial (une seule touche tant que moveHit est vrai)
@@ -194,7 +225,7 @@ export class Fighter {
       this.vx = dir * (hit.knock || 120) * 0.7 / this.mass;
       return 'blocked';
     }
-    this.hp = Math.max(0, this.hp - dmg);
+    this.hp = Math.max(this.scene.training ? 1 : 0, this.hp - dmg); // en entraînement, personne ne tombe K.O.
     this.superM = Math.min(MAX_SUPER, this.superM + dmg * 0.12);
     this.flash = 60;
     this.lastHitBand = hit.band === 'high' ? 'high' : 'mid';
@@ -204,6 +235,10 @@ export class Fighter {
     if (this.state === 'super') this.invuln = 0;
     const knock = (hit.knock || 150) / this.mass;
     const airborne = !this.grounded || this.state === 'airhit';
+    if (airborne) {
+      this.juggles = (this.juggles || 0) + 1;
+      if (this.juggles >= 4) this.invuln = Math.max(this.invuln, 700); // on ne jongle pas à l'infini
+    }
     if (this.hp <= 0) {
       // K.O. : projeté en arrière, il retombera et restera au sol
       this.vx = dir * Math.max(380, knock * 1.1); this.vy = -760 / Math.sqrt(this.mass);
@@ -308,6 +343,7 @@ export class Fighter {
       this.vy = 0;
       this.scene.fx.dust(this.x, this.scene.groundY, 0.7);
       Sfx.land();
+      this.juggles = 0;
       if (this.state === 'airhit') this.setState('down');
       else this.koLanded = true;
       return;

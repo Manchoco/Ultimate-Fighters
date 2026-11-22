@@ -3,6 +3,7 @@ import { FIGHTERS } from '../data/fighters.js';
 import { STAGES } from '../data/stages.js';
 import { Sfx, Music } from '../systems/Sfx.js';
 import { FONT, button, fullscreenButton } from './ui.js';
+import { Progress, applyCostume } from '../systems/Progress.js';
 
 
 export class SelectScene extends Phaser.Scene {
@@ -14,6 +15,7 @@ export class SelectScene extends Phaser.Scene {
     this.step = 'p1'; // p1 → p2 (combat libre) → stage (combat libre)
     this.cursor = 0;
     this.choice = {};
+    this.costume = 0;
   }
 
   create() {
@@ -52,6 +54,9 @@ export class SelectScene extends Phaser.Scene {
     this.vsImg = null;
 
     this.okBtn = button(this, 1170, 690, 'VALIDER', () => this.confirm(), { size: 30, bg: '#b8860bcc' });
+    // Tenues débloquées (bouton visible seulement s'il y a un choix)
+    this.costumeBtn = button(this, 250, 690, '', () => this.nextCostume(), { size: 22, bg: '#00000099' });
+    this.input.keyboard?.on('keydown-C', () => this.nextCostume());
     button(this, 90, 40, '← RETOUR', () => this.back(), { size: 22, bg: '#00000099' });
     fullscreenButton(this);
 
@@ -78,7 +83,7 @@ export class SelectScene extends Phaser.Scene {
 
   refresh() {
     const f = FIGHTERS[this.cursor];
-    this.header.setText(this.step === 'p1' ? 'CHOISIS TON COMBATTANT' : 'CHOISIS TON ADVERSAIRE');
+    this.header.setText(this.step === 'p1' ? 'CHOISIS TON COMBATTANT' : this.mode === 'training' ? 'CHOISIS TON PARTENAIRE D\'ENTRAÎNEMENT' : 'CHOISIS TON ADVERSAIRE');
     this.cells.forEach((c, i) => {
       const sel = i === this.cursor;
       const taken = this.choice.p1 === FIGHTERS[i].id && this.step === 'p2';
@@ -89,6 +94,11 @@ export class SelectScene extends Phaser.Scene {
     this.big.x = this.step === 'p2' ? 360 : 250;
     this.tweens.killTweensOf(this.big);
     this.big.setAlpha(0); this.tweens.add({ targets: this.big, alpha: 1, duration: 150 });
+    const list = this.step === 'p1' ? Progress.costumes(f.id) : [0];
+    if (!list.includes(this.costume)) this.costume = 0;
+    this.costumeBtn.setVisible(list.length > 1).setText(`TENUE : ${['NORMALE', 'ALTERNATIVE', 'DORÉE'][this.costume]}  (C)`);
+    if (this.big.preFX) this.big.preFX.clear();
+    applyCostume(this.big, this.costume);
     this.nameTxt.setFontSize(54).setText(f.name.toUpperCase());
     if (this.nameTxt.width > 560) this.nameTxt.setFontSize(Math.floor(54 * 560 / this.nameTxt.width));
     this.titleTxt.setText(f.title);
@@ -101,6 +111,14 @@ export class SelectScene extends Phaser.Scene {
     ].join('\n'));
   }
 
+  nextCostume() {
+    if (this.step !== 'p1') return;
+    const list = Progress.costumes(FIGHTERS[this.cursor].id);
+    if (list.length < 2) return;
+    this.costume = list[(list.indexOf(this.costume) + 1) % list.length];
+    Sfx.move(); this.refresh();
+  }
+
   confirm() {
     Sfx.unlock();
     if (this.step === 'stage') return this.startFight(STAGES[this.stageCursor].id);
@@ -108,12 +126,13 @@ export class SelectScene extends Phaser.Scene {
     Sfx.confirm();
     if (this.step === 'p1') {
       this.choice.p1 = f.id;
+      this.choice.costume = this.costume;
       Sfx.announce(f.name);
       if (this.mode === 'arcade') {
         const ladder = Phaser.Utils.Array.Shuffle(FIGHTERS.filter((x) => x.id !== f.id).map((x) => x.id));
         const stages = Phaser.Utils.Array.Shuffle(STAGES.map((s) => s.id));
         Music.stop(this);
-        this.scene.start('Versus', { p1: f.id, p2: ladder[0], stage: stages[0], mode: 'arcade', level: this.level, ladder, stages, ladderIndex: 0 });
+        this.scene.start('Versus', { p1: f.id, p2: ladder[0], stage: stages[0], mode: 'arcade', level: this.level, ladder, stages, ladderIndex: 0, costume: this.costume, score: 0 });
         return;
       }
       this.step = 'p2';
@@ -160,7 +179,7 @@ export class SelectScene extends Phaser.Scene {
 
   startFight(stage) {
     Music.stop(this);
-    this.scene.start('Versus', { p1: this.choice.p1, p2: this.choice.p2, stage, mode: 'free', level: this.level });
+    this.scene.start('Versus', { p1: this.choice.p1, p2: this.choice.p2, stage, mode: this.mode, level: this.level, costume: this.choice.costume || 0, score: 0 });
   }
 
   back() {

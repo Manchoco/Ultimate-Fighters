@@ -40,6 +40,8 @@ export class HUDScene extends Phaser.Scene {
       const supTxt = this.add.text(side === 'left' ? sx : sx + 300, 655, 'SUPER', { fontFamily: FONT, fontSize: '20px', color: '#c9b8ff', stroke: '#000', strokeThickness: 4 }).setOrigin(side === 'left' ? 0 : 1, 0);
       this.bars[side] = { fighter, hp, lag, barW, winDots, sup, supTxt, lagVal: 1, frame, portrait, pframe, name };
     }
+    // Score du joueur
+    this.scoreTxt = this.add.text(100, top + barH + 42, 'SCORE 0', { fontFamily: FONT, fontSize: '20px', color: '#ffd23a', stroke: '#000', strokeThickness: 4 });
     // Chrono
     this.add.rectangle(W / 2, top + 14, 84, 66, 0x000000, 0.75).setStrokeStyle(2, 0xffd23a);
     this.timer = this.add.text(W / 2, top + 14, '99', { fontFamily: FONT, fontSize: '46px', color: '#ffd23a', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5);
@@ -62,12 +64,41 @@ export class HUDScene extends Phaser.Scene {
       this.time.delayedCall(9000, () => this.tweens.add({ targets: help, alpha: 0, duration: 800 }));
     }
     this.buildPause();
+    if (f.training) this.buildTraining();
+  }
+
+  // Panneau du mode entraînement : liste des coups, mannequin, super illimitée
+  buildTraining() {
+    const W = this.scale.width; const f = this.fight; const d = f.p1.data;
+    const lines = [
+      'LISTE DES COUPS',
+      'Poing J / P  ·  Pied K  ·  Balayette ↓ + K',
+      'Enchaîner : poing → pied → spécial → super',
+      `S1 (L) ${d.s1.name} : ${d.s1.desc}`,
+      `S2 (I) ${d.s2.name} : ${d.s2.desc}`,
+      `SUPER (O) ${d.sup.name} : ${d.sup.desc}`,
+    ];
+    this.trainPanel = this.add.text(W / 2, 150, lines.join('\n'), {
+      fontFamily: FONT, fontSize: '15px', color: '#fff', backgroundColor: '#000000aa', padding: { x: 12, y: 8 }, align: 'center', lineSpacing: 4,
+    }).setOrigin(0.5, 0);
+    const modes = ['MANNEQUIN : IMMOBILE', 'MANNEQUIN : SE PROTÈGE', 'MANNEQUIN : SAUTE', 'MANNEQUIN : SE BAT'];
+    const mk = (x, label, cb) => {
+      const b = this.add.text(x, 330, label, { fontFamily: FONT, fontSize: '16px', color: '#fff', backgroundColor: '#2a1f5ccc', padding: { x: 10, y: 6 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      b.on('pointerdown', () => { Sfx.select(); cb(b); });
+      return b;
+    };
+    mk(W / 2 - 300, modes[0], (b) => { f.dummyMode = (f.dummyMode + 1) % 4; b.setText(modes[f.dummyMode]); });
+    this.superInfinite = true;
+    mk(W / 2, 'SUPER ILLIMITÉE : OUI', (b) => { this.superInfinite = !this.superInfinite; b.setText(`SUPER ILLIMITÉE : ${this.superInfinite ? 'OUI' : 'NON'}`); });
+    mk(W / 2 + 300, 'MASQUER LA LISTE', (b) => { this.trainPanel.setVisible(!this.trainPanel.visible); b.setText(this.trainPanel.visible ? 'MASQUER LA LISTE' : 'AFFICHER LA LISTE'); });
+    this.bestCombo = this.add.text(W / 2, 372, '', { fontFamily: FONT, fontSize: '18px', color: '#ffd23a', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
   }
 
   refresh() {
     const f = this.fight;
     if (!this.timer) return;
     this.timer.setText(String(Math.ceil(Math.max(0, f.timeLeft ?? 99))));
+    if (this.scoreTxt) this.scoreTxt.setText(`SCORE ${f.score.toLocaleString('fr-FR')}`);
     for (const side of ['left', 'right']) {
       const b = this.bars[side];
       const r = Phaser.Math.Clamp(b.fighter.hp / MAX_HP, 0, 1);
@@ -96,11 +127,16 @@ export class HUDScene extends Phaser.Scene {
     this.tweens.add({ targets: t, alpha: 0, delay: dur, duration: 250 });
   }
 
-  comboText(side, n) {
+  comboText(side, n, dmg = 0) {
+    if (this.bestCombo && side === 'left') {
+      this.bestN = Math.max(this.bestN || 0, n);
+      this.bestCombo.setText(`Dernier combo : ${n} coups, ${dmg} dégâts  ·  Record : ${this.bestN} coups`);
+    }
     const W = this.scale.width;
     const x = side === 'left' ? 24 : W - 24;
     if (this.comboTxt[side]) this.comboTxt[side].destroy();
-    const t = this.add.text(x, 220, `${n} COUPS !`, { fontFamily: FONT, fontSize: '44px', color: '#ffd23a', stroke: '#000', strokeThickness: 7 }).setOrigin(side === 'left' ? 0 : 1, 0.5);
+    const label = n >= 8 ? 'INARRÊTABLE !' : n >= 5 ? 'SUPERBE !' : n >= 3 ? 'BIEN JOUÉ !' : '';
+    const t = this.add.text(x, 220, `${n} COUPS\n${label}${label ? ' ' : ''}${dmg} DÉGÂTS`, { fontFamily: FONT, fontSize: '40px', color: '#ffd23a', stroke: '#000', strokeThickness: 7, align: side === 'left' ? 'left' : 'right', lineSpacing: -4 }).setOrigin(side === 'left' ? 0 : 1, 0.5);
     this.comboTxt[side] = t;
     t.setScale(1.4);
     this.tweens.add({ targets: t, scale: 1, duration: 150 });

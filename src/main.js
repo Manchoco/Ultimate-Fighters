@@ -6,6 +6,7 @@ import { VersusScene } from './scenes/VersusScene.js';
 import { FightScene } from './scenes/FightScene.js';
 import { HUDScene } from './scenes/HUDScene.js';
 import { ResultScene } from './scenes/ResultScene.js';
+import { ChallengesScene } from './scenes/ChallengesScene.js';
 import '@fontsource/sankofa-display/400.css';
 import '@fontsource/ojuju/800.css';
 
@@ -29,7 +30,7 @@ const game = new Phaser.Game({
   input: { activePointers: 5 },
   render: { antialias: true, pixelArt: false },
   fps: { target: 60 },
-  scene: [BootScene, TitleScene, SelectScene, VersusScene, FightScene, HUDScene, ResultScene],
+  scene: [BootScene, TitleScene, SelectScene, VersusScene, FightScene, HUDScene, ResultScene, ChallengesScene],
 });
 
 window.__UF__ = game; // utile pour les tests automatisés

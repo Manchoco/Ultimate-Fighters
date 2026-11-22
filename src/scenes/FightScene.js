@@ -5,6 +5,7 @@ import { AI } from '../systems/AI.js';
 import { Sfx, Music } from '../systems/Sfx.js';
 import { fighterById } from '../data/fighters.js';
 import { STAGES } from '../data/stages.js';
+import { applyCostume } from '../systems/Progress.js';
 
 const ROUND_TIME = 99;
 const ROUNDS_TO_WIN = 2;
@@ -21,8 +22,14 @@ export class FightScene extends Phaser.Scene {
     this.slowmo = 1;
     this.freezeFor = null;
     this.camLock = false;
-    this.combo = { count: 0, t: 0, owner: null };
+    this.combo = { count: 0, t: 0, owner: null, dmg: 0 };
+    this.score = data.score || 0;
+    const z = () => ({ hits: 0, dmg: 0, maxCombo: 0, superKO: 0, cancels: 0, blocks: 0, specials: 0 });
+    this.stats = { p1: z(), p2: z(), perfectRounds: 0, roundDamageTaken: 0, fastestWin: 999, roundsWon: 0, roundsLost: 0 };
     this.paused = false;
+    this.training = data.mode === 'training';
+    this.dummyMode = 0; // entraînement : 0 immobile, 1 garde, 2 saute, 3 attaque (IA)
+    this.lastHitAt = 0;
   }
 
   create() {
@@ -42,6 +49,7 @@ export class FightScene extends Phaser.Scene {
     this.p2 = new Fighter(this, fighterById(this.cfg.p2), mid + 260, -1, true);
     this.p1.opponent = this.p2; this.p2.opponent = this.p1;
     this.ai = new AI(this.p2, this.cfg.level);
+    applyCostume(this.p1.sprite, this.cfg.costume);
     this.leftBound = 0; this.rightBound = this.worldW;
     this.cameras.main.scrollX = mid - W / 2;
 
@@ -69,6 +77,7 @@ export class FightScene extends Phaser.Scene {
     }
     this.projectiles.forEach((p) => p.gfx.destroy()); this.projectiles = [];
     this.timeLeft = ROUND_TIME;
+    this.stats.roundDamageTaken = 0;
     this.phase = 'intro';
     this.time.timeScale = 1; this.tweens.timeScale = 1; this.slowmo = 1;
     const final = this.p1.wins === 1 && this.p2.wins === 1;
@@ -98,6 +107,14 @@ export class FightScene extends Phaser.Scene {
       Sfx.announce(winner ? 'Temps écoulé' : 'Égalité');
     }
     if (winner) winner.wins++;
+    if (winner === this.p1) {
+      this.stats.roundsWon++;
+      const used = ROUND_TIME - this.timeLeft;
+      this.stats.fastestWin = Math.min(this.stats.fastestWin, used);
+      let bonus = Math.round(this.timeLeft * 100 + this.p1.hp * 5);
+      if (this.stats.roundDamageTaken <= 0) { this.stats.perfectRounds++; bonus += 5000; this.time.delayedCall(900, () => this.hud.banner('PARFAIT !', '#7dff6a', 1000)); }
+      this.addScore(bonus);
+    } else if (winner === this.p2) this.stats.roundsLost++;
     this.time.delayedCall(1500, () => {
       if (winner && winner.alive) { winner.setState('win'); this.hud.banner(`${winner.data.name.toUpperCase()} GAGNE !`, '#ffd23a', 1400); }
       if (loser && loser.alive && reason !== 'ko') loser.setState('idle');
@@ -107,7 +124,7 @@ export class FightScene extends Phaser.Scene {
         const playerWon = this.p1.wins >= ROUNDS_TO_WIN;
         Music.stop(this);
         this.scene.stop('HUD');
-        this.scene.start('Result', { ...this.cfg, playerWon });
+        this.scene.start('Result', { ...this.cfg, playerWon, score: this.score, stats: this.stats });
       } else {
         this.round++;
         this.startRound();
@@ -132,6 +149,11 @@ export class FightScene extends Phaser.Scene {
   // ---------- Impacts ----------
   applyHit(att, def, hit) {
     if (this.phase !== 'fight') return 'none'; // aucun coup ne compte hors du combat (intro, fin de round)
+    // combo réel : l'adversaire était encore sonné par le coup précédent
+    const inCombo = this.combo.owner === att && ['hit', 'airhit'].includes(def.state);
+    if (inCombo) hit = { ...hit, dmg: hit.dmg * Math.max(0.4, 1 - 0.1 * this.combo.count) }; // dégâts dégressifs
+    const hpBefore = def.hp;
+    this.lastHitAt = this.time.now;
     const res = def.receive(hit, att);
     if (res === 'none' || res === 'countered') return res;
     if (res === 'armored') {
@@ -145,6 +167,7 @@ export class FightScene extends Phaser.Scene {
       if (!hit.projectile && att.grounded && (def.x <= this.leftBound + 70 || def.x >= this.rightBound - 70)) att.vx = -att.facing * (hit.knock || 150) * 0.6;
       this.fx.spark(cx, cy, 0xbfe0ff, false);
       Sfx.block();
+      if (def === this.p1) this.stats.p1.blocks++;
       att.superM = Math.min(MAX_SUPER, att.superM + 3);
       return res;
     }
@@ -156,12 +179,38 @@ export class FightScene extends Phaser.Scene {
     this.hitstop = hit.heavy ? 110 : 60;
     att.superM = Math.min(MAX_SUPER, att.superM + hit.dmg * 0.18);
     // combo
-    if (this.combo.owner === att && this.time.now - this.combo.t < 900) this.combo.count++;
-    else { this.combo.owner = att; this.combo.count = 1; }
+    const dealt = hpBefore - def.hp;
+    if (inCombo) { this.combo.count++; this.combo.dmg += dealt; }
+    else { this.combo.owner = att; this.combo.count = 1; this.combo.dmg = dealt; }
     this.combo.t = this.time.now;
-    if (this.combo.count >= 2) this.hud.comboText(att === this.p1 ? 'left' : 'right', this.combo.count);
-    if (!def.alive) this.endRound(att, 'ko');
+    if (this.combo.count >= 2) this.hud.comboText(att === this.p1 ? 'left' : 'right', this.combo.count, Math.round(this.combo.dmg));
+    // statistiques et score (joueur 1)
+    const st = att === this.p1 ? this.stats.p1 : this.stats.p2;
+    st.hits++; st.dmg += dealt; st.maxCombo = Math.max(st.maxCombo, this.combo.count);
+    if (att === this.p1) this.addScore(Math.round(dealt * 10 * (1 + 0.15 * (this.combo.count - 1))));
+    else this.stats.roundDamageTaken += dealt;
+    if (!def.alive) {
+      if (att.state === 'super') st.superKO++;
+      this.endRound(att, 'ko');
+    }
     return res;
+  }
+
+  addScore(n) { this.score += n; }
+
+  // Entraînement : comportement du mannequin
+  dummyInput(dt) {
+    const toward = this.p1.x > this.p2.x ? 'right' : 'left';
+    const away = toward === 'right' ? 'left' : 'right';
+    const st = { left: false, right: false, up: false, down: false };
+    if (this.dummyMode === 1) st[away] = true; // garde permanente
+    if (this.dummyMode === 2 && this.p2.grounded && Math.random() < 0.02) st.up = true;
+    if (this.dummyMode === 3) return this.ai.update(dt);
+    return st;
+  }
+
+  onCancel(f) {
+    if (f === this.p1) { this.stats.p1.cancels++; this.addScore(150); }
   }
 
   showMoveName(f, name, color) {
@@ -285,7 +334,13 @@ export class FightScene extends Phaser.Scene {
     if (this.phase === 'fight' && dt > 0) {
       if (!this.freezeFor) {
         if (ctrl) this.p1.input(ctrl);
-        this.p2.input(this.ai.update(dt));
+        this.p2.input(this.training ? this.dummyInput(dt) : this.ai.update(dt));
+      }
+      if (this.training) {
+        this.timeLeft = 99;
+        if (this.hud.superInfinite) this.p1.superM = MAX_SUPER;
+        // la vie remonte quand on arrête de frapper
+        if (this.time.now - this.lastHitAt > 1500) for (const f of [this.p1, this.p2]) if (!f.busy && f.hp < 1000) f.hp = Math.min(1000, f.hp + dt * 0.8);
       }
       this.timeLeft -= dt / 1000;
       if (this.timeLeft <= 0) {
