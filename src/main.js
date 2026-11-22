@@ -35,4 +35,18 @@ const game = new Phaser.Game({
 });
 
 window.__UF__ = game; // utile pour les tests automatisés
+
+// Plein écran automatique au premier toucher / clic, puis verrouillage en paysage.
+// (Les navigateurs exigent un geste de l'utilisateur ; l'iPhone n'autorise ni l'un ni l'autre :
+// le message « tourne ton téléphone » reste alors affiché en portrait.)
+const portrait = () => window.matchMedia('(orientation: portrait)').matches;
+const lockLandscape = () => { try { screen.orientation?.lock?.('landscape')?.catch?.(() => {}); } catch (e) { /* non pris en charge */ } };
+game.scale.on('enterfullscreen', lockLandscape);
+let autoDone = false;
+document.addEventListener('pointerup', () => {
+  if (game.scale.isFullscreen || !game.scale.fullscreen.available) return;
+  if (autoDone && !portrait()) return; // une seule fois, sauf si on est encore en portrait
+  autoDone = true;
+  try { game.scale.startFullscreen({ navigationUI: 'hide' }); } catch (e) { /* refusé par le navigateur */ }
+});
 });

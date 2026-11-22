@@ -15,16 +15,23 @@ export class AI {
     this.timer = 0;
     this.intent = 'idle';
     this.holdT = 0;
-    this.state = { left: false, right: false, up: false, down: false, punch: false, kick: false, s1: false, s2: false, sup: false };
+    this.state = { left: false, right: false, up: false, down: false, punch: false, kick: false, s1: false, s2: false, sup: false, grab: false, taunt: false, dash: null };
   }
 
   rand(a, b) { return a + Math.random() * (b - a); }
 
   update(dt) {
     const st = this.state;
-    st.punch = st.kick = st.s1 = st.s2 = st.sup = false;
+    st.punch = st.kick = st.s1 = st.s2 = st.sup = st.grab = st.taunt = false; st.dash = null;
     const f = this.f; const o = f.opponent;
     if (!f.alive || !o || !o.alive) { st.left = st.right = st.up = st.down = false; return st; }
+    // saisi : tente de se dégager (plus souvent en difficile)
+    if (f.state === 'grabbed') {
+      if (this.techRoll === undefined) this.techRoll = Math.random() < this.cfg.block * 0.5;
+      if (this.techRoll && f.stateT > 80) st.grab = true;
+      return st;
+    }
+    this.techRoll = undefined;
     const dist = Math.abs(o.x - f.x);
     const toward = o.x > f.x ? 'right' : 'left';
     const away = toward === 'right' ? 'left' : 'right';
@@ -56,6 +63,7 @@ export class AI {
       case 'crouch': st.down = true; break;
       default: break;
     }
+    if (this.pending === 'dashfwd' || this.pending === 'dashback') { st.dash = this.pending === 'dashfwd' ? 'fwd' : 'back'; this.pending = null; }
     if (this.pending) { st[this.pending] = true; if (this.pending === 'lowkick') { st.down = true; st.kick = true; st.lowkick = false; } this.pending = null; }
     return st;
   }
@@ -68,6 +76,8 @@ export class AI {
     if (f.superM >= 100 && dist < 560 && Math.random() < c.superUse) { this.pending = 'sup'; return; }
 
     if (dist > 420) {
+      if (Math.random() < 0.05) { this.pending = 'taunt'; this.intent = 'idle'; return; } // mimique de loin
+      if (Math.random() < 0.18 * c.aggro) { this.pending = 'dashfwd'; return; }
       const sl = pick('far');
       if (sl && Math.random() < c.special * 2.2) { this.pending = sl; this.intent = 'idle'; return; }
       this.intent = Math.random() < 0.12 * c.aggro ? 'jumpin' : 'approach';
@@ -80,7 +90,10 @@ export class AI {
       this.intent = Math.random() < c.aggro ? 'approach' : (Math.random() < 0.5 ? 'idle' : 'retreat');
       return;
     }
-    // Corps à corps
+    // Corps à corps : contre un adversaire qui se protège, la prise passe la garde
+    if ((o.state === 'block' || o.holdingBack) && Math.random() < 0.3 + c.aggro * 0.2) { this.pending = 'grab'; this.intent = 'idle'; return; }
+    if (Math.random() < 0.08) { this.pending = 'grab'; this.intent = 'idle'; return; }
+    if (Math.random() < 0.06 * c.aggro) { this.pending = Math.random() < 0.5 ? 'dashback' : 'dashfwd'; return; }
     const r = Math.random();
     const close = pick('close') || pick('mid');
     if (close && r < c.special * 1.5) { this.pending = close; this.intent = 'idle'; return; }

@@ -25,7 +25,18 @@
    "heavy0",
    "heavy1",
    "win",
-   "ko"
+   "ko",
+   "stance0",
+   "stance1",
+   "taunt0",
+   "taunt1",
+   "cheer0",
+   "cheer1",
+   "cheer2",
+   "grab",
+   "throw",
+   "stomp",
+   "dash"
   ]
  },
  "doyen": {
@@ -54,7 +65,18 @@
    "heavy0",
    "heavy1",
    "win",
-   "ko"
+   "ko",
+   "stance0",
+   "stance1",
+   "taunt0",
+   "taunt1",
+   "cheer0",
+   "cheer1",
+   "cheer2",
+   "grab",
+   "throw",
+   "stomp",
+   "dash"
   ]
  },
  "akissi": {
@@ -83,7 +105,18 @@
    "heavy0",
    "heavy1",
    "win",
-   "ko"
+   "ko",
+   "stance0",
+   "stance1",
+   "taunt0",
+   "taunt1",
+   "cheer0",
+   "cheer1",
+   "cheer2",
+   "grab",
+   "throw",
+   "stomp",
+   "dash"
   ]
  },
  "kanga": {
@@ -112,7 +145,18 @@
    "heavy0",
    "heavy1",
    "win",
-   "ko"
+   "ko",
+   "stance0",
+   "stance1",
+   "taunt0",
+   "taunt1",
+   "cheer0",
+   "cheer1",
+   "cheer2",
+   "grab",
+   "throw",
+   "stomp",
+   "dash"
   ]
  },
  "k225": {
@@ -141,7 +185,18 @@
    "heavy0",
    "heavy1",
    "win",
-   "ko"
+   "ko",
+   "stance0",
+   "stance1",
+   "taunt0",
+   "taunt1",
+   "cheer0",
+   "cheer1",
+   "cheer2",
+   "grab",
+   "throw",
+   "stomp",
+   "dash"
   ]
  },
  "aya": {
@@ -170,7 +225,18 @@
    "heavy0",
    "heavy1",
    "win",
-   "ko"
+   "ko",
+   "stance0",
+   "stance1",
+   "taunt0",
+   "taunt1",
+   "cheer0",
+   "cheer1",
+   "cheer2",
+   "grab",
+   "throw",
+   "stomp",
+   "dash"
   ]
  },
  "kid": {
@@ -199,7 +265,18 @@
    "heavy0",
    "heavy1",
    "win",
-   "ko"
+   "ko",
+   "stance0",
+   "stance1",
+   "taunt0",
+   "taunt1",
+   "cheer0",
+   "cheer1",
+   "cheer2",
+   "grab",
+   "throw",
+   "stomp",
+   "dash"
   ]
  },
  "archer": {
@@ -228,7 +305,18 @@
    "heavy0",
    "heavy1",
    "win",
-   "ko"
+   "ko",
+   "stance0",
+   "stance1",
+   "taunt0",
+   "taunt1",
+   "cheer0",
+   "cheer1",
+   "cheer2",
+   "grab",
+   "throw",
+   "stomp",
+   "dash"
   ]
  },
  "ahou": {
@@ -257,7 +345,18 @@
    "heavy0",
    "heavy1",
    "win",
-   "ko"
+   "ko",
+   "stance0",
+   "stance1",
+   "taunt0",
+   "taunt1",
+   "cheer0",
+   "cheer1",
+   "cheer2",
+   "grab",
+   "throw",
+   "stomp",
+   "dash"
   ]
  },
  "koro": {
@@ -286,7 +385,18 @@
    "heavy0",
    "heavy1",
    "win",
-   "ko"
+   "ko",
+   "stance0",
+   "stance1",
+   "taunt0",
+   "taunt1",
+   "cheer0",
+   "cheer1",
+   "cheer2",
+   "grab",
+   "throw",
+   "stomp",
+   "dash"
   ]
  }
 }

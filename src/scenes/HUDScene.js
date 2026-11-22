@@ -58,7 +58,7 @@ export class HUDScene extends Phaser.Scene {
 
     // Aide clavier (PC) au premier round
     if (!this.controls.touchEnabled) {
-      const help = this.add.text(W / 2, 708, 'Déplacement : ← → / Q D · Saut : ↑ / Z · Garde : reculer · J coup de poing · K coup de pied · L spécial 1 · I spécial 2 · O super · Échap pause', {
+      const help = this.add.text(W / 2, 708, '← → / Q D marcher (double appui : ruée) · ↑ / Z saut · reculer = garde · J poing · K pied · H prise · L spé 1 · I spé 2 · O super · T provoquer · Échap pause', {
         fontFamily: FONT, fontSize: '15px', color: '#fff', backgroundColor: '#00000099', padding: { x: 10, y: 4 },
       }).setOrigin(0.5, 1);
       this.time.delayedCall(9000, () => this.tweens.add({ targets: help, alpha: 0, duration: 800 }));

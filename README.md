@@ -14,14 +14,17 @@ Jeu de combat 2D jouable dans le navigateur, sur PC et sur téléphone.
 |---|---|
 | Se déplacer | ← → ou Q D |
 | Sauter / s'accroupir | ↑ ou Z / ↓ ou S |
-| Se protéger | reculer (sens opposé à l'adversaire) |
+| Ruée / retrait / roulade | double appui vers l'avant / l'arrière (de près, la ruée devient une roulade qui passe de l'autre côté) |
+| Se protéger | reculer (sens opposé à l'adversaire) — la garde s'use : dans un long enchaînement, un coup finit par passer |
 | Poing / Pied | J / K |
 | Spécial 1 / Spécial 2 | L / I |
+| Prise (passe la garde) | H — se faire saisir : appuyer aussitôt sur H pour se dégager |
+| Provoquer | T (remplit un peu la super, mais laisse sans défense) |
 | Super | O (quand la jauge clignote) |
 | Pause | Échap |
 
 ### Commandes téléphone
-Mode paysage. Croix à gauche, boutons **P** (poing), **K** (pied), **S1**, **S2**, **SUP** à droite.
+Le jeu passe en plein écran et en paysage au premier toucher (sur iPhone, Safari ne le permet pas : tourne le téléphone). Croix à gauche (double appui = ruée), boutons **P** (poing), **K** (pied), **S1**, **S2**, **SUP**, **PRISE** et **PROV.** à droite ; en plein écran, les boutons sont agrandis.
 
 ## Développement
 

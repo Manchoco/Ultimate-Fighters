@@ -3,29 +3,43 @@ import Phaser from 'phaser';
 // Fusionne clavier et boutons tactiles en un seul état de commande.
 // État « maintenu » : left, right, up, down. Impulsions (vraies une seule image) :
 // punch, kick, s1, s2, sup.
-const PULSES = ['punch', 'kick', 's1', 's2', 'sup'];
+const PULSES = ['punch', 'kick', 's1', 's2', 'sup', 'grab', 'taunt'];
 
 export class Controls {
   constructor(scene) {
     this.scene = scene;
-    this.state = { left: false, right: false, up: false, down: false, punch: false, kick: false, s1: false, s2: false, sup: false };
+    this.state = { left: false, right: false, up: false, down: false, punch: false, kick: false, s1: false, s2: false, sup: false, grab: false, taunt: false };
     this.prevTouch = {};
     const K = Phaser.Input.Keyboard.KeyCodes;
     this.keys = scene.input.keyboard ? scene.input.keyboard.addKeys({
       left: K.LEFT, right: K.RIGHT, up: K.UP, down: K.DOWN,
       a: K.A, d: K.D, w: K.W, s: K.S, q: K.Q, z: K.Z, space: K.SPACE,
-      j: K.J, k: K.K, l: K.L, i: K.I, o: K.O, u: K.U,
+      j: K.J, k: K.K, l: K.L, i: K.I, o: K.O, u: K.U, h: K.H, t: K.T,
     }) : null;
     this.buttons = [];
     this.touchEnabled = scene.sys.game.device.input.touch;
-    if (this.touchEnabled) this.buildTouch();
+    if (this.touchEnabled) {
+      scene.input.addPointer(4);
+      this.buildTouch();
+      // en plein écran, les touches grossissent (proportionnellement, ancrées aux coins)
+      this.onFs = () => { this.clearTouch(); this.buildTouch(); };
+      scene.scale.on('enterfullscreen', this.onFs); scene.scale.on('leavefullscreen', this.onFs);
+      // un appui très bref (appui + relâchement dans la même image) serait manqué par la
+      // simple lecture de l'état : on enregistre donc chaque appui dès l'événement
+      this.queued = {};
+      scene.input.on('pointerdown', (p) => {
+        for (const b of this.buttons) if (Phaser.Math.Distance.Between(p.x, p.y, b.x, b.y) < b.r * 1.25) this.queued[b.id] = true;
+      });
+    }
   }
 
   buildTouch() {
     const s = this.scene;
-    s.input.addPointer(4);
     const W = s.scale.width, H = s.scale.height;
-    const mk = (id, x, y, r, label, color, kind = 'hold') => {
+    const k = s.scale.isFullscreen ? 1.25 : 1; // facteur d'agrandissement
+    const mk = (id, x0, y0, r0, label, color, kind = 'hold') => {
+      // x0, y0 : position mesurée depuis le coin (gauche ou droit) ; tout est mis à l'échelle k
+      const x = x0 < W / 2 ? x0 * k : W - (W - x0) * k; const y = H - (H - y0) * k - (k - 1) * 48; const r = r0 * k; // un peu plus haut : ne cache pas la jauge SUPER
       const c = s.add.circle(x, y, r, color, 0.28).setStrokeStyle(3, 0xffffff, 0.55).setScrollFactor(0).setDepth(200);
       const t = s.add.text(x, y, label, { fontFamily: '"Ojuju", sans-serif', fontSize: `${Math.round(r * 0.55)}px`, color: '#fff' })
         .setOrigin(0.5).setScrollFactor(0).setDepth(201).setAlpha(0.9);
@@ -44,16 +58,11 @@ export class Controls {
     mk('s1', bx - 60, by - 85, 46, 'S1', 0xffa000, 'pulse');
     mk('s2', bx + 55, by - 60, 46, 'S2', 0x3fae3a, 'pulse');
     mk('sup', bx + 95, by - 165, 44, 'SUP', 0xb040ff, 'pulse');
-
-    // Un appui très bref (appui + relâchement dans la même image) serait manqué par la
-    // simple lecture de l'état : on enregistre donc chaque appui dès l'événement.
-    this.queued = {};
-    s.input.on('pointerdown', (p) => {
-      for (const b of this.buttons) {
-        if (Phaser.Math.Distance.Between(p.x, p.y, b.x, b.y) < b.r * 1.25) this.queued[b.id] = true;
-      }
-    });
+    mk('grab', bx - 195, by - 45, 42, 'PRISE', 0x8a5a2e, 'pulse');
+    mk('taunt', bx - 200, by + 75, 30, 'PROV.', 0x444444, 'pulse');
   }
+
+  clearTouch() { this.buttons.forEach((b) => { b.c.destroy(); b.t.destroy(); }); this.buttons = []; }
 
   setSuperReady(ready) {
     const b = this.buttons.find((x) => x.id === 'sup');
@@ -75,6 +84,8 @@ export class Controls {
       if (JD(k.l)) st.s1 = true;
       if (JD(k.i) || JD(k.u)) st.s2 = true;
       if (JD(k.o)) st.sup = true;
+      if (JD(k.h)) st.grab = true;
+      if (JD(k.t)) st.taunt = true;
     }
     if (this.touchEnabled) {
       const pointers = this.scene.input.manager.pointers.filter((p) => p.isDown);
@@ -95,5 +106,8 @@ export class Controls {
     return st;
   }
 
-  destroy() { this.buttons.forEach((b) => { b.c.destroy(); b.t.destroy(); }); this.buttons = []; }
+  destroy() {
+    this.clearTouch();
+    if (this.onFs) { this.scene.scale.off('enterfullscreen', this.onFs); this.scene.scale.off('leavefullscreen', this.onFs); }
+  }
 }

@@ -7,6 +7,7 @@ import { fighterById } from '../data/fighters.js';
 import { STAGES } from '../data/stages.js';
 import { applyCostume } from '../systems/Progress.js';
 import { Arena } from '../systems/Arena.js';
+import { FONT } from './ui.js';
 
 const ROUND_TIME = 99;
 const ROUNDS_TO_WIN = 2;
@@ -75,7 +76,13 @@ export class FightScene extends Phaser.Scene {
       f.move = null; f.special = null; f.invuln = 0; f.counterActive = 0; f.shieldT = 0;
       f.rot = 0; f.spin = 0; f.bounced = false; f.koLanded = false; f.flash = 0;
       f.cool.s1 = 0; f.cool.s2 = 0; f.sprite.setAlpha(1);
+      f.victim = null; f.grabber = null; f.guard = 0; f.passThrough = false; f.rolling = false;
       f.setState('intro');
+    }
+    // mimiques d'entrée : chacun lance sa provocation au premier round
+    if (this.round === 1) {
+      this.time.delayedCall(150, () => this.speech(this.p1, this.p1.persona.taunt));
+      this.time.delayedCall(650, () => this.speech(this.p2, this.p2.persona.taunt));
     }
     this.projectiles.forEach((p) => p.gfx.destroy()); this.projectiles = [];
     this.arena.resetRound();
@@ -122,8 +129,9 @@ export class FightScene extends Phaser.Scene {
       if (winner && winner.alive) { winner.setState('win'); this.hud.banner(`${winner.data.name.toUpperCase()} GAGNE !`, '#ffd23a', 1400); }
       if (loser && loser.alive && reason !== 'ko') loser.setState('idle');
     });
-    this.time.delayedCall(3400, () => {
-      if (this.p1.wins >= ROUNDS_TO_WIN || this.p2.wins >= ROUNDS_TO_WIN) {
+    const matchOver = this.p1.wins >= ROUNDS_TO_WIN || this.p2.wins >= ROUNDS_TO_WIN;
+    this.time.delayedCall(matchOver ? 4600 : 3400, () => { // fin de match : on laisse le vainqueur célébrer
+      if (matchOver) {
         const playerWon = this.p1.wins >= ROUNDS_TO_WIN;
         Music.stop(this);
         this.scene.stop('HUD');
@@ -174,6 +182,7 @@ export class FightScene extends Phaser.Scene {
       att.superM = Math.min(MAX_SUPER, att.superM + 3);
       return res;
     }
+    if (def.guardBroken) { def.guardBroken = false; this.fx.floatText(def.x, def.y - 400, 'GARDE BRISÉE !', '#ff9a3c', 30); }
     // dans le coin, c'est l'attaquant qui recule (comme dans les jeux de combat)
     if (!hit.projectile && att.grounded && (def.x <= this.leftBound + 70 || def.x >= this.rightBound - 70)) att.vx = -att.facing * (hit.knock || 150) * 0.8;
     const color = hit.color || 0xffe38a;
@@ -214,6 +223,20 @@ export class FightScene extends Phaser.Scene {
 
   onCancel(f) {
     if (f === this.p1) { this.stats.p1.cancels++; this.addScore(150); }
+  }
+
+  // Bulle de parole au-dessus d'un combattant (mimique, réplique de victoire)
+  speech(f, text) {
+    if (!text) return;
+    f.bubble?.destroy();
+    const t = this.add.text(0, 0, text, { fontFamily: FONT, fontSize: '22px', color: '#1a1020', align: 'center', wordWrap: { width: 300 } }).setOrigin(0.5);
+    const bg = this.add.rectangle(0, 0, t.width + 28, t.height + 16, 0xfff6e0, 0.95).setStrokeStyle(3, f.data.color);
+    const tail = this.add.triangle(0, t.height / 2 + 14, -10, 0, 10, 0, 0, 14, 0xfff6e0);
+    const c = this.add.container(f.x, f.y - 440, [bg, tail, t]).setDepth(40).setScale(0.6).setAlpha(0);
+    f.bubble = c;
+    this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 160, ease: 'Back.easeOut' });
+    const follow = this.time.addEvent({ delay: 16, loop: true, callback: () => { if (c.active) c.setPosition(f.x, Math.min(f.y, this.groundY) - 440); } });
+    this.time.delayedCall(1500, () => this.tweens.add({ targets: c, alpha: 0, duration: 250, onComplete: () => { follow.remove(); c.destroy(); } }));
   }
 
   showMoveName(f, name, color) {
