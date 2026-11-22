@@ -1,17 +1,33 @@
 // Intelligence de l'ordinateur. Elle produit le même état de commande qu'un joueur.
 // Niveaux : 0 = Facile, 1 = Normal, 2 = Difficile.
 import { MOVES } from './Moves.js';
+import { Adapt } from './Adapt.js';
+
+// Préréglages. Le niveau réellement utilisé est un nombre décimal entre 0 et 2 (préréglage
+// + adaptation au joueur, voir Adapt.js) : les valeurs sont interpolées entre deux préréglages.
+//   think  : temps de réflexion entre deux décisions (ms)   react : délai avant de réagir à une attaque (ms)
+//   block  : probabilité de parer    aggro : envie d'avancer   special / superUse : usage des coups spéciaux
+//   grab   : usage des prises        hesit : probabilité de rester sans rien faire (laisse respirer)
+//   dmg    : multiplicateur des dégâts infligés par l'ordinateur
 const LEVELS = [
-  { think: [420, 650], block: 0.18, aggro: 0.45, special: 0.12, superUse: 0.35 },
-  { think: [230, 400], block: 0.45, aggro: 0.6, special: 0.22, superUse: 0.65 },
-  { think: [120, 220], block: 0.72, aggro: 0.72, special: 0.32, superUse: 0.9 },
+  { think: [700, 1050], react: 480, block: 0.06, aggro: 0.3, special: 0.05, superUse: 0.2, grab: 0.05, hesit: 0.4, dmg: 0.6 },
+  { think: [420, 650], react: 300, block: 0.22, aggro: 0.45, special: 0.12, superUse: 0.45, grab: 0.15, hesit: 0.18, dmg: 0.82 },
+  { think: [180, 300], react: 150, block: 0.55, aggro: 0.65, special: 0.24, superUse: 0.8, grab: 0.3, hesit: 0.06, dmg: 0.95 },
 ];
+function lerpLevel(x) {
+  const i = Math.min(1, Math.floor(x)); const t = x - i; const a = LEVELS[i], b = LEVELS[i + 1];
+  const out = {};
+  for (const k in a) out[k] = Array.isArray(a[k]) ? a[k].map((v, j) => v + (b[k][j] - v) * t) : a[k] + (b[k] - a[k]) * t;
+  return out;
+}
 
 
 export class AI {
   constructor(fighter, level = 1) {
     this.f = fighter;
-    this.cfg = LEVELS[level] || LEVELS[1];
+    this.level = level;
+    this.base = lerpLevel(Adapt.effective(level));
+    this.cfg = this.base; this.threatT = 0;
     this.timer = 0;
     this.intent = 'idle';
     this.holdT = 0;
@@ -19,6 +35,22 @@ export class AI {
   }
 
   rand(a, b) { return a + Math.random() * (b - a); }
+
+  // Recalcule le niveau après une fin de round (l'adaptation a pu bouger)
+  refresh() { this.base = lerpLevel(Adapt.effective(this.level)); }
+
+  // Second souffle : si le joueur est en grande difficulté, l'ordinateur relâche la pression
+  // (et inversement s'il domine trop facilement). Effet modéré, jamais visible comme une triche.
+  tune() {
+    const me = this.f, pl = me.opponent; const b = this.base;
+    const gap = (me.hp - pl.hp) / 1000; // > 0 : l'ordinateur mène
+    const k = gap > 0.35 ? -Math.min(0.5, (gap - 0.35) * 1.2) : gap < -0.5 ? Math.min(0.25, (-gap - 0.5) * 0.6) : 0;
+    this.cfg = {
+      ...b,
+      block: Math.max(0, b.block * (1 + k)), aggro: Math.max(0.1, b.aggro * (1 + k * 0.6)), special: Math.max(0, b.special * (1 + k)),
+      hesit: Math.min(0.6, b.hesit * (1 - k * 1.5)), react: b.react * (1 - k * 0.5), dmg: b.dmg * (1 + k * 0.3),
+    };
+  }
 
   update(dt) {
     const st = this.state;
@@ -39,19 +71,22 @@ export class AI {
     // Réaction défensive immédiate quand l'adversaire attaque à portée
     const threat = (o.state === 'attack' || o.state === 'special') && dist < 260;
     const projectileNear = f.scene.projectiles.some((p) => p.owner !== f && Math.abs(p.x - f.x) < 330 && Math.sign(p.vx) === Math.sign(f.x - p.x));
-    if ((threat || projectileNear) && !f.busy) {
+    if (threat || projectileNear) this.threatT += dt; else this.threatT = 0;
+    if ((threat || projectileNear) && !f.busy && this.threatT >= this.cfg.react) { // il lui faut le temps de voir venir le coup
       if (this.blockDecision === undefined) this.blockDecision = Math.random() < this.cfg.block;
       if (this.blockDecision) {
         st[away] = true; st[toward] = false; st.up = false;
         if (projectileNear && Math.random() < 0.04 * (1 + this.cfg.aggro)) { st.up = true; st[toward] = true; st[away] = false; }
         return st;
       }
-    } else this.blockDecision = undefined;
+    } else if (!threat && !projectileNear) this.blockDecision = undefined;
 
     this.timer -= dt;
     if (this.timer <= 0) {
+      this.tune();
       this.timer = this.rand(...this.cfg.think);
-      this.decide(dist, o);
+      if (Math.random() < this.cfg.hesit) this.intent = Math.random() < 0.5 ? 'idle' : 'retreat'; // hésite : laisse une ouverture
+      else this.decide(dist, o);
     }
 
     st.left = st.right = st.up = st.down = false;
@@ -91,8 +126,8 @@ export class AI {
       return;
     }
     // Corps à corps : contre un adversaire qui se protège, la prise passe la garde
-    if ((o.state === 'block' || o.holdingBack) && Math.random() < 0.3 + c.aggro * 0.2) { this.pending = 'grab'; this.intent = 'idle'; return; }
-    if (Math.random() < 0.08) { this.pending = 'grab'; this.intent = 'idle'; return; }
+    if ((o.state === 'block' || o.holdingBack) && Math.random() < c.grab * 1.6) { this.pending = 'grab'; this.intent = 'idle'; return; }
+    if (Math.random() < c.grab * 0.4) { this.pending = 'grab'; this.intent = 'idle'; return; }
     if (Math.random() < 0.06 * c.aggro) { this.pending = Math.random() < 0.5 ? 'dashback' : 'dashfwd'; return; }
     const r = Math.random();
     const close = pick('close') || pick('mid');

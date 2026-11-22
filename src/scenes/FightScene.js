@@ -8,6 +8,7 @@ import { STAGES } from '../data/stages.js';
 import { applyCostume } from '../systems/Progress.js';
 import { Arena } from '../systems/Arena.js';
 import { FONT } from './ui.js';
+import { Adapt } from '../systems/Adapt.js';
 
 const ROUND_TIME = 99;
 const ROUNDS_TO_WIN = 2;
@@ -117,6 +118,8 @@ export class FightScene extends Phaser.Scene {
       Sfx.announce(winner ? 'Temps écoulé' : 'Égalité', [winner ? 'temps' : 'egalite']);
     }
     if (winner) winner.wins++;
+    // l'IA s'ajuste au joueur (hors entraînement) : défaite nette = l'ordinateur se calme
+    if (!this.training) { Adapt.roundEnd(this.cfg.level, winner ? winner === this.p1 : null, this.p1.hp - this.p2.hp); this.ai.refresh(); }
     if (winner === this.p1) {
       this.stats.roundsWon++;
       const used = ROUND_TIME - this.timeLeft;
@@ -165,6 +168,8 @@ export class FightScene extends Phaser.Scene {
     if (inCombo) hit = { ...hit, dmg: hit.dmg * Math.max(0.4, 1 - 0.1 * this.combo.count) }; // dégâts dégressifs
     const hpBefore = def.hp;
     this.lastHitAt = this.time.now;
+    // dégâts de l'ordinateur selon la difficulté (et l'adaptation au joueur)
+    if (att === this.p2 && !this.training && this.ai) hit = { ...hit, dmg: hit.dmg * this.ai.cfg.dmg };
     const res = def.receive(hit, att);
     if (res === 'none' || res === 'countered') return res;
     if (res === 'armored') {

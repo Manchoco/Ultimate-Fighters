@@ -48,7 +48,8 @@ export class TitleScene extends Phaser.Scene {
       try { localStorage.setItem('uf_level', String(level)); } catch (e) { /* ignore */ }
       lvl.setText(`DIFFICULTÉ : ${LEVEL_NAMES[level]}`);
     }, { size: 30 });
-    button(this, W / 2, 520, 'COMMENT JOUER', () => this.showHelp(), { size: 26, bg: '#00000099' });
+    this.add.text(W / 2, 489, 'L\'ordinateur s\'adapte à ton niveau au fil des combats', { fontFamily: FONT, fontSize: '15px', color: '#ffffffcc', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
+    button(this, W / 2, 528, 'COMMENT JOUER', () => this.showHelp(), { size: 26, bg: '#00000099' });
 
     fullscreenButton(this);
     muteButton(this);
